@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><AssemblyName>Monii.Server</AssemblyName><Version>0.7.0</Version></PropertyGroup><ItemGroup><ProjectReference Include="../Monii.Infrastructure/Monii.Infrastructure.csproj"/><PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.9"/></ItemGroup></Project>

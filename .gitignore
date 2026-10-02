@@ -15,3 +15,9 @@ search-results.json
 .env
 .env.*
 !.env.example
+
+connection.json
+pending-operation.json
+server.json
+verification.allow
+*.log

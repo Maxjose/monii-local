@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,14 +17,20 @@ public partial class MainWindow : Window
     private readonly BusinessService service;
     private readonly string databasePath;
     private readonly OperationsService operations;
-    private readonly SqliteStore storage;
+    private readonly IMoniiStore storage;
     private string currentPage = "Inicio";
     private readonly ObservableCollection<DemoLine> demoCart = [];
     private static readonly CultureInfo UiCulture = CultureInfo.GetCultureInfo("es-VE");
 
-    public MainWindow(BusinessService service, SqliteStore storage)
+    public MainWindow(BusinessService service, IMoniiStore storage)
     {
         InitializeComponent();
+        if(storage is RemoteStore remote)
+        {
+            VersionLabel.Text="VERSIÓN 0.7 · RED";DataModeLabel.Text="Datos en el equipo principal";ConnectionLabel.Text="●  Conectado al principal";
+            remote.ConnectionChanged+=connected=>Dispatcher.BeginInvoke(new Action(()=> { ConnectionLabel.Text=connected?"●  Conectado al principal":"●  Sin conexión al principal";ConnectionLabel.Foreground=connected?Brush("#166534"):Theme.Resource("ThemeError"); }));
+        }
+
         this.service = service;
         this.databasePath = storage.DatabasePath;
         this.storage = storage;
@@ -121,11 +127,16 @@ public partial class MainWindow : Window
     {
         var panel = new StackPanel();
         if (storage.BackupWarning is { } warning) panel.Children.Add(Text(warning, 15, "#B91C1C"));
+        if(storage is RemoteStore pending && pending.HasPending)
+        {
+            panel.Children.Add(Text("Hay una operación pendiente de confirmar. Accede con el usuario que la realizó y recupera su respuesta antes de registrar otra.",15,"#B91C1C"));
+            panel.Children.Add(Button("Reconciliar operación pendiente",()=>Safe(ResolvePendingOperation)));
+        }
         panel.Children.Add(Text("Tu negocio, en orden.", 18));
         panel.Children.Add(Text("Consulta existencias, registra ventas y revisa tu caja.", 14, "#64748B"));
         var cards = new UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 24) };
         var products = service.Products(includeInactive: true);
-        cards.Children.Add(Card("PRODUCTOS ACTIVOS", products.Count(p => p.Active).ToString(), "Catálogo guardado en este equipo"));
+        cards.Children.Add(Card("PRODUCTOS ACTIVOS", products.Count(p => p.Active).ToString(), storage is RemoteStore ? "Catálogo del equipo principal" : "Catálogo guardado en este equipo"));
         cards.Children.Add(Card("PERFIL DEL NEGOCIO", ProfileLabel(service.Settings.Profile), "Opciones adaptadas a tu actividad"));
         cards.Children.Add(Card("MONEDA BASE", "USD", "Conversiones opcionales"));
         panel.Children.Add(cards);
@@ -142,7 +153,7 @@ public partial class MainWindow : Window
             panel.Children.Add(Text($"{entry.At.ToLocalTime():dd/MM HH:mm}   ·   {entry.Action} · {entry.ActorName}", 14, "#64748B"));
         var state = operations.State;
         if(storage.Can(Permission.Reports)) panel.Children.Add(Text($"Ventas vigentes: {state.Sales.Count(s => !s.Voided)} · Total USD {state.Sales.Sum(s => OperationsService.NetTotal(state,s)):N2} · Créditos pendientes USD {state.Sales.Sum(s => OperationsService.Debt(state, s)):N2}", 15));
-        panel.Children.Add(Text(OperationsService.OpenSession(state) is null ? "Caja cerrada" : "Caja abierta", 14, "#0F766E"));
+        panel.Children.Add(Text(operations.CurrentCash is null ? "Caja cerrada" : "Caja abierta", 14, "#0F766E"));
         return Scroll(panel);
     }
 

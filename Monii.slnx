@@ -5,6 +5,7 @@
     <Project Path="src/Monii.Infrastructure/Monii.Infrastructure.csproj" />
     <Project Path="src/Monii.Desktop/Monii.Desktop.csproj" />
     <Project Path="src/Monii.UpdateTool/Monii.UpdateTool.csproj" />
+    <Project Path="src/Monii.Server/Monii.Server.csproj" />
   </Folder>
-  <Folder Name="/tests/"><Project Path="tests/Monii.Verification/Monii.Verification.csproj" /></Folder>
+  <Folder Name="/tests/"><Project Path="tests/Monii.Verification/Monii.Verification.csproj" /><Project Path="tests/Monii.NetworkVerification/Monii.NetworkVerification.csproj" /></Folder>
 </Solution>

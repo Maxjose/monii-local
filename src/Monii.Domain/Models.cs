@@ -21,6 +21,7 @@ public sealed record Product
 
 public sealed record BusinessSettings
 {
+    public bool IndependentCash { get; init; } = true;
     public string Name { get; init; } = "Mi negocio";
     public string TaxId { get; init; } = "";
     public BusinessProfile Profile { get; init; }

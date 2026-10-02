@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Monii.Domain;
@@ -13,6 +13,7 @@ public partial class MainWindow
     private readonly DispatcherTimer exchangeTimer=new() { Interval=TimeSpan.FromMinutes(60) };
     internal void StartExchangeRefresh()
     {
+        if(storage is Monii.Infrastructure.RemoteStore) return;
         exchangeTimer.Tick+=async(_,_)=>await RefreshRates(false); exchangeTimer.Start();
         Loaded+=async(_,_)=>await RefreshRates(false);
         Closed+=(_,_)=>exchangeTimer.Stop();
@@ -22,7 +23,7 @@ public partial class MainWindow
         var settings=service.Settings;
         if(!force&&!(settings.ShowBcv&&settings.AutoBcv)&&!(settings.ShowCop&&settings.AutoCop)) return;
         if(refreshingRates) return; refreshingRates=true;
-        try { var result=await new ExchangeRates(storage).RefreshAsync(force); rateMessage=result.Message; Status.Text=result.Message; }
+        try { var result=storage is Monii.Infrastructure.RemoteStore remote ? await remote.RefreshRates(force) : await new ExchangeRates(storage).RefreshAsync(force); rateMessage=result.Message; Status.Text=result.Message; }
         catch(Exception e) { rateMessage="No se actualizaron las tasas: "+e.Message; Status.Text=rateMessage; }
         finally { refreshingRates=false; }
     }

@@ -1,16 +1,16 @@
-<Window x:Class="Monii.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Monii · Gestión de negocios" Width="1280" Height="820" MinWidth="960" MinHeight="640" Background="{DynamicResource ThemeCanvas}" Foreground="{DynamicResource ThemeText}" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
+﻿<Window x:Class="Monii.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Monii · Gestión de negocios" Width="1280" Height="820" MinWidth="960" MinHeight="640" Background="{DynamicResource ThemeCanvas}" Foreground="{DynamicResource ThemeText}" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
   <Grid Background="{DynamicResource ThemeCanvas}">
     <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
     <Border Background="{DynamicResource ThemeSidebar}" Padding="20,28">
       <DockPanel>
         <StackPanel DockPanel.Dock="Top"><TextBlock Text="monii" Foreground="White" FontSize="38" FontWeight="Bold" /><TextBlock Text="Tu negocio, en orden" Foreground="#A8C8CC" Margin="0,4,0,32" /></StackPanel>
-        <StackPanel DockPanel.Dock="Bottom"><TextBlock Text="VERSIÓN 0.6 · LOCAL" FontSize="11" Foreground="#A8C8CC" /><TextBlock Text="Datos en este equipo" Foreground="#A8C8CC" Margin="0,8,0,0" /></StackPanel>
+        <StackPanel DockPanel.Dock="Bottom"><TextBlock x:Name="VersionLabel" Text="VERSIÓN 0.7 · LOCAL" FontSize="11" Foreground="#A8C8CC" /><TextBlock x:Name="DataModeLabel" Text="Datos en este equipo" Foreground="#A8C8CC" Margin="0,8,0,0" /></StackPanel>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Navigation" /></ScrollViewer>
       </DockPanel>
     </Border>
     <Grid Grid.Column="1" Margin="30,24">
       <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-      <Grid Margin="0,0,0,24"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock x:Name="BusinessName" FontSize="13" Foreground="{DynamicResource ThemeMuted}" /><TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel><Border Grid.Column="1" Background="#DCFCE7" CornerRadius="12" Padding="14,8" VerticalAlignment="Center"><TextBlock Text="●  Funcionamiento local" Foreground="#166534" FontSize="12" /></Border></Grid>
+      <Grid Margin="0,0,0,24"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock x:Name="BusinessName" FontSize="13" Foreground="{DynamicResource ThemeMuted}" /><TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel><Border Grid.Column="1" Background="#DCFCE7" CornerRadius="12" Padding="14,8" VerticalAlignment="Center"><TextBlock x:Name="ConnectionLabel" Text="●  Funcionamiento local" Foreground="#166534" FontSize="12" /></Border></Grid>
       <ContentControl x:Name="PageContent" Grid.Row="1" />
       <TextBlock x:Name="UpdateNotice" Grid.Row="2" Visibility="Collapsed" Foreground="{DynamicResource ThemeAccentInk}" TextWrapping="Wrap" Margin="0,12,0,0" />
       <TextBlock x:Name="Status" Grid.Row="3" Text="Listo" Foreground="{DynamicResource ThemeMuted}" FontSize="12" Margin="0,16,0,0" TextWrapping="Wrap" />

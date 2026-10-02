@@ -1,6 +1,7 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Monii.Domain;
 using System.Text.Json;
+using Monii.Application;
 
 namespace Monii.Infrastructure;
 
@@ -19,10 +20,11 @@ public sealed partial class SqliteStore
         command.CommandText = "SELECT payload FROM operations WHERE id=1";
         return command.ExecuteScalar() is string payload ? JsonSerializer.Deserialize<OperationsState>(payload) ?? throw new InvalidDataException("Datos operativos inválidos.") : new();
     }
-    public T Transact<T>(Func<OperationsState, IReadOnlyList<Product>, BusinessSettings, T> operation, string action)
+    public T Transact<T>(Func<OperationsState, IReadOnlyList<Product>, BusinessSettings, T> operation, string action, RemoteCommand? remoteCommand=null)
     {
         Require(ActionPermission(action));
         using var connection = Open(); using var transaction = connection.BeginTransaction(deferred: false);
+        if(TryReceipt<T>(connection,transaction,out var replay)) return replay!;
         var state = ReadState(connection, transaction);
         var previous=Snapshot(state);
         var previousLimits=state.Customers.ToDictionary(c=>c.Id,c=>c.CreditLimit);
@@ -62,6 +64,7 @@ public sealed partial class SqliteStore
         command.CommandText = "INSERT INTO audit(at,action,details,actor) VALUES($at,$action,$details,$actor)";
         command.Parameters.Clear(); command.Parameters.AddWithValue("$actor", CurrentUser?.Name ?? "Histórico sin usuario");
         command.Parameters.AddWithValue("$at", DateTimeOffset.UtcNow.ToString("O")); command.Parameters.AddWithValue("$action", action); command.Parameters.AddWithValue("$details", JsonSerializer.Serialize(result)); command.ExecuteNonQuery();
+        SaveReceipt(connection,transaction,result);
         transaction.Commit(); return result;
     }
 
@@ -94,7 +97,7 @@ public sealed partial class SqliteStore
         using var command = connection.CreateCommand(); command.CommandText = "PRAGMA integrity_check";
         if (command.ExecuteScalar()?.ToString() != "ok") throw new ArgumentException("El respaldo no supera la comprobación de integridad.");
         command.CommandText = "PRAGMA user_version"; var version = Convert.ToInt32(command.ExecuteScalar());
-        if (version is < 1 or > 4) throw new ArgumentException("El archivo no es un respaldo compatible de Monii.");
+        if (version is < 1 or > 5) throw new ArgumentException("El archivo no es un respaldo compatible de Monii.");
         command.CommandText = "PRAGMA foreign_key_check";
         using (var reader = command.ExecuteReader()) if (reader.Read()) throw new ArgumentException("El respaldo tiene relaciones inválidas.");
         command.CommandText = "SELECT payload FROM products";
@@ -107,11 +110,18 @@ public sealed partial class SqliteStore
         {
             var state = ReadState(connection, null);
             if (state.Stock.Any(m => !ids.Contains(m.ProductId)) || state.Sales.SelectMany(s => s.Lines).Any(l => !ids.Contains(l.ProductId)) || state.Purchases.SelectMany(s => s.Lines).Any(l => !ids.Contains(l.ProductId))) throw new ArgumentException("Referencias de productos inválidas en respaldo.");
-            if (state.Stock.GroupBy(m => m.ProductId).Any(g => g.Sum(m => m.Quantity) < 0) || state.Sales.Any(s => Monii.Application.OperationsService.Debt(state, s) < 0) || state.Abonos.Any(a => !state.Sales.Any(s => s.Id == a.SaleId)) || state.Sales.Any(s => s.CustomerId is { } id && !state.Customers.Any(c => c.Id == id)) || state.Purchases.Any(p => !state.Suppliers.Any(s => s.Id == p.SupplierId)) || state.Cash.Any(e => !state.Sessions.Any(s => s.Id == e.SessionId)) || state.Sessions.Count(s => s.ClosedAt is null) > 1)
+            if (state.Stock.GroupBy(m => m.ProductId).Any(g => g.Sum(m => m.Quantity) < 0) || state.Sales.Any(s => Monii.Application.OperationsService.Debt(state, s) < 0) || state.Abonos.Any(a => !state.Sales.Any(s => s.Id == a.SaleId)) || state.Sales.Any(s => s.CustomerId is { } id && !state.Customers.Any(c => c.Id == id)) || state.Purchases.Any(p => !state.Suppliers.Any(s => s.Id == p.SupplierId)) || state.Cash.Any(e => !state.Sessions.Any(s => s.Id == e.SessionId)) || state.Sessions.Where(s=>s.ClosedAt is null).GroupBy(s=>s.CashScope).Any(g=>g.Count()>1))
                 throw new ArgumentException("El respaldo contiene saldos o relaciones operativas inválidas.");
             ValidateReturns(state);
         }
         if(version>=3) ValidateNormalizedBackup(connection);
+        if(version>=5)
+        {
+            command.CommandText="SELECT epoch FROM network_meta WHERE id=1";
+            if(command.ExecuteScalar() is not string epoch||epoch.Length!=32)throw new ArgumentException("Identidad de servidor inválida en respaldo.");
+            command.CommandText="SELECT count(*) FROM request_receipts WHERE length(hash)<>64 OR json_valid(result)=0";
+            if(Convert.ToInt32(command.ExecuteScalar())>0)throw new ArgumentException("Comprobantes de peticiones inválidos en respaldo.");
+        }
         if(version>=4)
         {
             command.CommandText="SELECT name FROM categories"; var categories=new HashSet<string>(StringComparer.OrdinalIgnoreCase);

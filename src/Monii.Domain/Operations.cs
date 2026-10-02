@@ -1,4 +1,4 @@
-namespace Monii.Domain;
+﻿namespace Monii.Domain;
 
 public enum Currency { USD, VES_BCV, VES_Manual, COP }
 public enum PaymentMethod { Efectivo, Transferencia, Tarjeta }
@@ -70,6 +70,8 @@ public sealed record CreditPayment
 public sealed record CashEntry(Guid Id, Guid SessionId, DateTimeOffset At, Payment Payment, decimal Usd, string Reason, Guid? DocumentId);
 public sealed record CashSession
 {
+    public string CashScope { get; init; } = "local";
+    public string Name { get; init; } = "Equipo local";
     public Guid Id { get; init; } = Guid.NewGuid();
     public DateTimeOffset OpenedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ClosedAt { get; init; }

@@ -44,5 +44,5 @@ public sealed partial class OperationsService
             Cash(state,new(Currency.USD,refundMethod,-refund),-refund,"Devolución de venta",document.Id);
         }
         state.Returns.Add(document); return document;
-    },"Devolución de venta");
+    },"Devolución de venta",NetworkJson.Command("ReturnSale",new { saleId, items, reason, refundMethod }));
 }

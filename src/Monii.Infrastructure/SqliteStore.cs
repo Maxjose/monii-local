@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Monii.Application;
 using Monii.Domain;
 using System.Globalization;
@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace Monii.Infrastructure;
 
-public sealed partial class SqliteStore : IStore, IOperationsStore
+public sealed partial class SqliteStore : IMoniiStore
 {
     private readonly string connectionString;
     public string DatabasePath { get; }
@@ -21,9 +21,9 @@ public sealed partial class SqliteStore : IStore, IOperationsStore
         {
             probe.CommandText = "PRAGMA user_version";
             var existingVersion = Convert.ToInt32(probe.ExecuteScalar(), CultureInfo.InvariantCulture);
-            if (existingVersion is 1 or 2 or 3)
+            if (existingVersion is 1 or 2 or 3 or 4)
             {
-                var copy = DatabasePath + (existingVersion == 1 ? ".before-v2-" : existingVersion==2 ? ".before-v3-" : ".before-v4-") + Guid.NewGuid().ToString("N") + ".db";
+                var copy = DatabasePath + (existingVersion == 1 ? ".before-v2-" : existingVersion==2 ? ".before-v3-" : existingVersion==3 ? ".before-v4-" : ".before-v5-") + Guid.NewGuid().ToString("N") + ".db";
                 using var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = copy, Pooling = false }.ToString());
                 backup.Open(); connection.BackupDatabase(backup);
             }
@@ -33,7 +33,7 @@ public sealed partial class SqliteStore : IStore, IOperationsStore
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
-        if (version > 4) throw new InvalidOperationException("Esta base de datos requiere una versión más reciente de Monii.");
+        if (version > 5) throw new InvalidOperationException("Esta base de datos requiere una versión más reciente de Monii.");
         if (version == 0)
         {
             command.CommandText = """
@@ -51,6 +51,7 @@ public sealed partial class SqliteStore : IStore, IOperationsStore
         }
         if (version < 3) MigrateNormalized(connection, transaction);
         if (version < 4) MigrateCategories(connection,transaction);
+        if (version < 5) MigrateNetwork(connection,transaction);
         transaction.Commit();
     }
 

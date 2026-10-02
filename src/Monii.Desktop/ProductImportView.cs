@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -39,7 +39,7 @@ public partial class MainWindow
             try
             {
                 if(preview is null||!preview.Valid) throw new ArgumentException("Corrige el archivo y vuelve a validarlo.");
-                var backupDirectory=Path.Combine(Path.GetDirectoryName(databasePath)!,"backups"); Directory.CreateDirectory(backupDirectory);
+                var backupDirectory=Path.Combine(storage is Monii.Infrastructure.RemoteStore ? App.DataDirectory : Path.GetDirectoryName(databasePath)!,"backups"); Directory.CreateDirectory(backupDirectory);
                 var backup=storage.Backup(Path.Combine(backupDirectory,"monii-before-import-"+DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")+".db"));
                 var count=storage.ImportProducts(preview); dialog.Close(); Navigate("Productos"); Status.Text=$"{count} productos importados. Respaldo previo: {backup}";
             }

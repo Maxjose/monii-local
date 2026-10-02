@@ -6,7 +6,7 @@ using Monii.Domain;
 
 namespace Monii.Infrastructure;
 
-public sealed class ExchangeRates(SqliteStore store,HttpClient? httpClient=null)
+public sealed class ExchangeRates(Monii.Application.IMoniiStore store,HttpClient? httpClient=null)
 {
     private static readonly HttpClient Shared = new() { Timeout=TimeSpan.FromSeconds(15) };
     private readonly HttpClient client=httpClient??Shared;

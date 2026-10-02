@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using Monii.Application;
 using Monii.Infrastructure;
@@ -7,6 +7,8 @@ namespace Monii.Desktop;
 
 public partial class App : System.Windows.Application
 {
+    internal static string DataDirectory { get; private set; } = "";
+    private IMoniiStore? activeStore;
     private string? dataDirectory;
     private Mutex? instanceMutex;
     private bool ownsMutex;
@@ -24,7 +26,7 @@ public partial class App : System.Windows.Application
             var args = e.Args;
             var index = Array.IndexOf(args, "--data-dir");
             var directory = index >= 0 && args.Length > index + 1 ? args[index + 1] : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Monii");
-            dataDirectory = Path.GetFullPath(directory);
+            dataDirectory = Path.GetFullPath(directory);DataDirectory=dataDirectory;
             string? updateWarning=null;
             if(!args.Contains("--ui-verify")&&!args.Contains("--ignore-update"))
             {
@@ -61,10 +63,18 @@ public partial class App : System.Windows.Application
                 MessageBox.Show("No se pudo completar la acción. Revisa la operación e inténtalo nuevamente.\n\n" + eventArgs.Exception.Message, "Monii", MessageBoxButton.OK, MessageBoxImage.Error);
                 eventArgs.Handled = true;
             };
-            var store = new SqliteStore(Path.Combine(directory, "monii.db"));
+            var connection=ConnectionSettings.Load(directory);
+            if(!args.Contains("--ui-verify")&&!File.Exists(Path.Combine(directory,"connection.json"))&&!File.Exists(Path.Combine(directory,"monii.db")))
+            {
+                var setup=new ConnectionWindow(directory);ShutdownMode=ShutdownMode.OnExplicitShutdown;
+                if(setup.ShowDialog()!=true) { Shutdown();return; }connection=ConnectionSettings.Load(directory);
+            }
+            IMoniiStore store=connection.Mode=="Local" ? new SqliteStore(Path.Combine(directory,"monii.db")) : new RemoteStore(connection,directory);
+            activeStore=store;
             Theme.Apply(store.GetSettings());
             store.BackupWarning=updateWarning;
             var verificationIndex = Array.IndexOf(args, "--ui-verify");
+            var networkVerificationIndex=Array.IndexOf(args,"--network-ui-verify");
             ShutdownMode=ShutdownMode.OnExplicitShutdown;
             if(verificationIndex>=0)
             {
@@ -73,13 +83,29 @@ public partial class App : System.Windows.Application
                 store.SaveUser(null,"verificacion","Administrador de verificación",Monii.Domain.UserRole.Administrador,true,testPassword);
                 store.Authenticate("verificacion",testPassword);
             }
+            else if(networkVerificationIndex>=0)
+            {
+                if(store is not RemoteStore remote)throw new ArgumentException("La prueba requiere conexión a un servidor aislado.");
+                var password=Environment.GetEnvironmentVariable("MONII_UI_NETWORK_TEST")??throw new ArgumentException("Falta credencial de prueba.");
+                store.Authenticate("admin",password);Environment.SetEnvironmentVariable("MONII_UI_NETWORK_TEST",null);
+                if(!remote.Status().GetProperty("Verification").GetBoolean())throw new ArgumentException("El servidor no permite verificación UI.");
+            }
             else if(!SignIn(store)) { Shutdown(); return; }
-            try { store.AutomaticBackup(); }
+            try { if(store is SqliteStore) store.AutomaticBackup(); }
             catch (Exception backupError) { store.BackupWarning = "No se pudo crear el respaldo automático. Revisa la carpeta en Respaldos."; File.AppendAllText(Path.Combine(directory, "errors.log"), $"{DateTimeOffset.UtcNow:O} Respaldo automático: {backupError}\n"); }
             MainWindow = new MainWindow(new BusinessService(store), store);
-            if(verificationIndex<0) { ((MainWindow)MainWindow).StartExchangeRefresh(); ((MainWindow)MainWindow).StartUpdateChecks(); }
+            if(verificationIndex<0&&networkVerificationIndex<0) { ((MainWindow)MainWindow).StartExchangeRefresh(); ((MainWindow)MainWindow).StartUpdateChecks(); }
             MainWindow.Show();
             ShutdownMode=ShutdownMode.OnMainWindowClose;
+            if(networkVerificationIndex>=0)
+            {
+                var output=Path.GetFullPath(args[networkVerificationIndex+1]);Directory.CreateDirectory(output);ShutdownMode=ShutdownMode.OnExplicitShutdown;
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,new Action(()=>
+                {
+                    try { ((MainWindow)MainWindow).VerifyNetworkUi(output);Shutdown(0); }
+                    catch(Exception error) { File.WriteAllText(Path.Combine(output,"ui-error.txt"),error.ToString());Shutdown(1); }
+                }));
+            }
             if (verificationIndex >= 0)
             {
                 if (index < 0 || verificationIndex + 1 >= args.Length) throw new ArgumentException("La verificación requiere --data-dir y un directorio de resultados explícitos.");
@@ -104,6 +130,7 @@ public partial class App : System.Windows.Application
         catch (Exception error)
         {
             var verification=Array.IndexOf(e.Args,"--ui-verify");
+            if(verification<0)verification=Array.IndexOf(e.Args,"--network-ui-verify");
             if(verification>=0&&verification+1<e.Args.Length)
             {
                 var output=Path.GetFullPath(e.Args[verification+1]); Directory.CreateDirectory(output); File.WriteAllText(Path.Combine(output,"ui-error.txt"),error.ToString()); Shutdown(1); return;
@@ -115,9 +142,10 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if(activeStore is RemoteStore remote) { try { remote.SignOut(); } catch(Exception) { } remote.Dispose(); }
         if (ownsMutex) instanceMutex?.ReleaseMutex();
         instanceMutex?.Dispose();
         base.OnExit(e);
     }
-    internal static bool SignIn(SqliteStore store) => new LoginWindow(store).ShowDialog()==true;
+    internal static bool SignIn(IMoniiStore store) => new LoginWindow(store).ShowDialog()==true;
 }

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -165,7 +165,8 @@ public partial class MainWindow
 
     private UIElement CashPage()
     {
-        var state = operations.State; var session = OperationsService.OpenSession(state); var header = new StackPanel();
+        var state = operations.State; var session = operations.CurrentCash; var header = new StackPanel();
+        header.Children.Add(Text("Caja: "+storage.CashName,14));
         header.Children.Add(Text(session is null ? "Caja cerrada" : $"Caja abierta desde {session.OpenedAt.ToLocalTime():g}", 22));
         if (session is not null) { var balances=new List<string> { $"USD {OperationsService.Expected(state,session,"USD"):N2}" }; if(service.Settings.ShowBcv||service.Settings.ShowManualVes||OperationsService.Expected(state,session,"VES")!=0) balances.Add($"Bs {OperationsService.Expected(state,session,"VES"):N2}"); if(service.Settings.ShowCop||OperationsService.Expected(state,session,"COP")!=0) balances.Add($"COP {OperationsService.Expected(state,session,"COP"):N2}"); header.Children.Add(Text("Efectivo esperado · "+string.Join(" · ",balances),18)); }
         if (session is not null) header.Children.Add(Text("Movimiento neto equivalente USD por medio: " + string.Join(" · ", Enum.GetValues<PaymentMethod>().Select(m => $"{m} {state.Cash.Where(e => e.SessionId == session.Id && e.Payment.Method == m).Sum(e => e.Usd):N2}")), 13, "#64748B"));
@@ -181,11 +182,11 @@ public partial class MainWindow
             Form("Movimiento de caja", panel, () => { operations.CashMovement(ReadPayment(payment), expense.IsChecked == true, reason.Text); Navigate("Caja"); });
         })); header.Children.Add(actions);
         var tabs = new TabControl();
-        var entries = Table(("Fecha", "At", 2), ("Motivo", "Reason", 2), ("Moneda", "Currency", 1), ("Medio", "Method", 1), ("Importe", "Amount", 1), ("Equiv. USD", "Usd", 1));
-        entries.ItemsSource = state.Cash.OrderByDescending(e => e.At).Select(e => new { e.At, e.Reason, Currency = CurrencyLabel(e.Payment.Currency), e.Payment.Method, e.Payment.Amount, e.Usd }).ToList();
+        var entries = Table(("Caja", "CashName", 2),("Fecha", "At", 2), ("Motivo", "Reason", 2), ("Moneda", "Currency", 1), ("Medio", "Method", 1), ("Importe", "Amount", 1), ("Equiv. USD", "Usd", 1));
+        entries.ItemsSource = state.Cash.Where(e=>storage.Can(Permission.Reports)||state.Sessions.Any(s=>s.Id==e.SessionId&&s.CashScope==storage.CashScope)).OrderByDescending(e => e.At).Select(e => new { CashName=state.Sessions.Single(s=>s.Id==e.SessionId).Name,e.At, e.Reason, Currency = CurrencyLabel(e.Payment.Currency), e.Payment.Method, e.Payment.Amount, e.Usd }).ToList();
         tabs.Items.Add(new TabItem { Header = "Movimientos", Content = entries });
-        var closes = Table(("Apertura", "OpenedAt", 2), ("Cierre", "ClosedAt", 2), ("Dif. USD", "Usd", 1), ("Dif. Bs", "Ves", 1), ("Dif. COP", "Cop", 1));
-        closes.ItemsSource = state.Sessions.Where(s => s.ClosedAt is not null).OrderByDescending(s => s.ClosedAt).Select(s => new { s.OpenedAt, s.ClosedAt, Usd = s.CountedUsd - s.ExpectedUsd, Ves = s.CountedVes - s.ExpectedVes, Cop = s.CountedCop - s.ExpectedCop }).ToList();
+        var closes = Table(("Caja", "Name", 2),("Apertura", "OpenedAt", 2), ("Cierre", "ClosedAt", 2), ("Dif. USD", "Usd", 1), ("Dif. Bs", "Ves", 1), ("Dif. COP", "Cop", 1));
+        closes.ItemsSource = state.Sessions.Where(s => s.ClosedAt is not null && (storage.Can(Permission.Reports)||s.CashScope==storage.CashScope)).OrderByDescending(s => s.ClosedAt).Select(s => new { s.Name,s.OpenedAt, s.ClosedAt, Usd = s.CountedUsd - s.ExpectedUsd, Ves = s.CountedVes - s.ExpectedVes, Cop = s.CountedCop - s.ExpectedCop }).ToList();
         tabs.Items.Add(new TabItem { Header = "Cierres", Content = closes }); return Page(header, tabs);
     }
 
@@ -306,8 +307,9 @@ public partial class MainWindow
         var panel = new StackPanel(); panel.Children.Add(Text("Protege y recupera los datos de tu negocio", 22));
         if (storage.BackupWarning is { } warning) panel.Children.Add(Text(warning, 15, "#B91C1C"));
         panel.Children.Add(Text("Los respaldos incluyen catálogo, configuración, inventario y operaciones. La restauración reemplaza los datos actuales y conserva una copia previa.", 14, "#64748B"));
-        var settings = service.Settings; var auto = Check(panel, "Respaldo automático diario al abrir Monii (conserva 14 copias)", settings.AutoBackups);
-        var directory = Field(panel, "Carpeta de respaldos (vacío: carpeta de datos / backups)", settings.BackupDirectory);
+        var settings = service.Settings; var auto = Check(panel, storage is Monii.Infrastructure.RemoteStore ? "Respaldo automático diario en el principal (conserva 14 copias)" : "Respaldo automático diario al abrir Monii (conserva 14 copias)", settings.AutoBackups);
+        var directory = storage is Monii.Infrastructure.RemoteStore ? new TextBox { Text=settings.BackupDirectory } : Field(panel, "Carpeta de respaldos (vacío: carpeta de datos / backups)", settings.BackupDirectory);
+        if(storage is Monii.Infrastructure.RemoteStore)panel.Children.Add(Text("Los respaldos automáticos se guardan en el equipo principal. Puedes descargar una copia con Crear respaldo ahora."));
         panel.Children.Add(Button("Guardar preferencias de respaldo", () => Safe(() => { service.SaveSettings(service.Settings with { AutoBackups = auto.IsChecked == true, BackupDirectory = directory.Text.Trim() }); storage.AutomaticBackup(); Status.Text = "Preferencias guardadas."; })));
         panel.Children.Add(Button("Crear respaldo ahora", () =>
         {

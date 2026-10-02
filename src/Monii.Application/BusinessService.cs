@@ -49,6 +49,7 @@ public sealed class BusinessService(IStore store)
         if (store is IOperationsStore operations)
         {
             var state = operations.ReadOperations();
+            if(settings.IndependentCash!=Settings.IndependentCash && state.Sessions.Any(s=>s.ClosedAt is null)) throw new ArgumentException("Cierra todas las cajas antes de cambiar la modalidad.");
             if (!settings.Cash && OperationsService.OpenSession(state) is not null) throw new ArgumentException("Cierra caja antes de desactivar el módulo.");
             if ((!settings.Credit || !settings.Customers) && state.Sales.Any(s => OperationsService.Debt(state, s) > 0)) throw new ArgumentException("Hay créditos pendientes; conserva clientes y créditos activos.");
         }

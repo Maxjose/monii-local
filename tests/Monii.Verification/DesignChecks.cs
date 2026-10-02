@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using System.Text.Json;
 using Monii.Application;
 using Monii.Domain;
@@ -31,7 +31,7 @@ internal static class DesignChecks
         // Emulate real v3 free-text categories, without using current category validation.
         using(var connection=new SqliteConnection("Data Source="+store.DatabasePath))
         {
-            connection.Open(); using var command=connection.CreateCommand(); command.CommandText="DROP TABLE categories; PRAGMA user_version=3"; command.ExecuteNonQuery();
+            connection.Open(); using var command=connection.CreateCommand(); command.CommandText="DROP TABLE network_meta; DROP TABLE request_receipts; DROP TABLE categories; PRAGMA user_version=3"; command.ExecuteNonQuery();
             foreach(var p in store.GetProducts())
             {
                 command.Parameters.Clear(); command.CommandText="UPDATE products SET payload=$payload WHERE id=$id"; command.Parameters.AddWithValue("$id",p.Id.ToString()); command.Parameters.AddWithValue("$payload",JsonSerializer.Serialize(p with { Category=p.Code=="AL-1"?" Alimentos ":"alimentos" })); command.ExecuteNonQuery();

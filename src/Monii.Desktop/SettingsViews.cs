@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Monii.Domain;
@@ -9,11 +9,12 @@ public partial class MainWindow
     private UIElement Settings(string section="")
     {
         var tabs=new TabControl { TabStripPlacement=Dock.Top };
-        void Add(string name,UIElement content) { var tab=new TabItem { Header=name,Content=content }; tabs.Items.Add(tab); if(name==section) tabs.SelectedItem=tab; }
+        void Add(string name,UIElement content) { var tab=new TabItem { Header=name,Content=content,Padding=new Thickness(6,10,6,10) }; tabs.Items.Add(tab); if(name==section || section.Length==0&&name=="Negocio") tabs.SelectedItem=tab; }
         Add("Negocio",BusinessSettingsPage()); Add("Monedas y tasas",CurrencySettingsPage()); Add("Apariencia",AppearancePage());
         if(storage.Can(Permission.Users)) Add("Usuarios",UsersPage());
         if(storage.Can(Permission.Backup)) Add("Respaldos",Backups());
         if(storage.Can(Permission.Updates)) Add("Actualizaciones",UpdatesPage());
+        Add("Conexión",NetworkPage());
         if(tabs.SelectedIndex<0) tabs.SelectedIndex=0; return tabs;
     }
     private UIElement CurrencySettingsPage()

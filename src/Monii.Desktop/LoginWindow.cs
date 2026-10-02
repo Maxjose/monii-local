@@ -1,3 +1,5 @@
+﻿using System.IO;
+using Monii.Application;
 using System.Windows;
 using System.Windows.Controls;
 using Monii.Domain;
@@ -7,7 +9,7 @@ namespace Monii.Desktop;
 
 public sealed class LoginWindow : Window
 {
-    public LoginWindow(SqliteStore store)
+    public LoginWindow(IMoniiStore store)
     {
         var setup=!store.HasUsers; Title=setup?"Monii · Crear administrador":"Monii · Iniciar sesión"; Width=440; Height=500; ResizeMode=ResizeMode.NoResize; WindowStartupLocation=WindowStartupLocation.CenterScreen;
         SetResourceReference(BackgroundProperty,"ThemeCanvas"); var panel=new StackPanel { Margin=new Thickness(32) }; Content=panel;
@@ -24,6 +26,23 @@ public sealed class LoginWindow : Window
             try { if(setup) store.SaveUser(null,username.Text,name!.Text,UserRole.Administrador,true,password.Password); store.Authenticate(username.Text,password.Password); password.Clear(); DialogResult=true; }
             catch(Exception e) { error.Text=e.Message; password.Clear(); }
         };
+        if(store is RemoteStore)
+        {
+            var connection=ConnectionSettings.Load(App.DataDirectory);
+            panel.Children.Add(new TextBlock { Text="Equipo: "+connection.TerminalName,Margin=new Thickness(0,12,0,0) });
+            var edit=new Button { Content="Configurar conexión" };panel.Children.Add(edit);
+            edit.Click+=(_,_)=> { if(File.Exists(Path.Combine(App.DataDirectory,"pending-operation.json"))) { error.Text="Hay una operación pendiente. Conserva esta conexión y accede con su usuario para reconciliarla.";return; } if(new ConnectionWindow(App.DataDirectory) { Owner=this }.ShowDialog()==true) { MessageBox.Show("Abre Monii nuevamente para aplicar la conexión.","Monii");DialogResult=false; } };
+            if(connection.Mode=="Principal")
+            {
+                var start=new Button { Content="Iniciar servidor" };panel.Children.Add(start);
+                start.Click+=(_,_)=>
+                {
+                    try { var script=Path.Combine(AppContext.BaseDirectory,"server","Control-Server.ps1");var process=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe") { UseShellExecute=true,Verb="runas",WindowStyle=System.Diagnostics.ProcessWindowStyle.Hidden,Arguments="-NoProfile -ExecutionPolicy Bypass -File \""+script+"\" -Action Start" })!;process.WaitForExit();error.Text=process.ExitCode==0?"Servidor iniciado. Puedes ingresar.":"No se pudo iniciar el servidor.";process.Dispose(); }
+                    catch(Exception e) { error.Text=e.Message; }
+                };
+            }
+            Height=640;
+        }
         Loaded+=(_,_)=>username.Focus();
     }
 }

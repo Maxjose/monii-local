@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <AssemblyName>Monii</AssemblyName>
-    <Version>0.6.0</Version>
+    <Version>0.7.0</Version>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../Monii.Infrastructure/Monii.Infrastructure.csproj" /></ItemGroup>
 </Project>

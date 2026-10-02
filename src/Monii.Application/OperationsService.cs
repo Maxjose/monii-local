@@ -1,11 +1,13 @@
-using Monii.Domain;
+﻿using Monii.Domain;
 
 namespace Monii.Application;
 
 public interface IOperationsStore
 {
     OperationsState ReadOperations();
-    T Transact<T>(Func<OperationsState, IReadOnlyList<Product>, BusinessSettings, T> operation, string action);
+    T Transact<T>(Func<OperationsState, IReadOnlyList<Product>, BusinessSettings, T> operation, string action, RemoteCommand? command=null);
+    string CashScope => "local";
+    string CashName => "Equipo local";
 }
 
 public sealed partial class OperationsService(IOperationsStore store)
@@ -49,7 +51,7 @@ public sealed partial class OperationsService(IOperationsStore store)
     {
         if (!settings.Inventory) throw new ArgumentException("Activa inventario para ajustar existencias.");
         Reason(reason); Quantity(Product(products, productId), Math.Abs(delta)); Move(state, productId, delta, reason.Trim(), null); return true;
-    }, "Ajuste de inventario");
+    }, "Ajuste de inventario", NetworkJson.Command("Adjust",new { productId, delta, reason }));
 
     public Sale Sell(IReadOnlyList<(Guid ProductId, decimal Quantity)> items, decimal discount, IReadOnlyList<Payment> payments, Guid? customerId = null, DateOnly? due = null) => store.Transact((state, products, settings) =>
     {
@@ -81,7 +83,7 @@ public sealed partial class OperationsService(IOperationsStore store)
             if (change > 0) Cash(state, new(Currency.USD, PaymentMethod.Efectivo, -change), -change, "Cambio de venta", sale.Id);
         }
         state.Sales.Add(sale); return sale;
-    }, "Venta registrada");
+    }, "Venta registrada", NetworkJson.Command("Sell",new { items, discount, payments, customerId, due }));
 
     public void VoidSale(Guid id, string reason) => store.Transact((state, _, settings) =>
     {
@@ -92,23 +94,24 @@ public sealed partial class OperationsService(IOperationsStore store)
         if (sale.StockAffected) foreach (var line in sale.Lines) Move(state, line.ProductId, line.Quantity, "Anulación de venta: " + reason, id);
         ReverseCash(state, id, settings, reason);
         state.Sales[state.Sales.IndexOf(sale)] = sale with { Voided = true, VoidReason = reason.Trim() }; return true;
-    }, "Venta anulada");
+    }, "Venta anulada", NetworkJson.Command("VoidSale",new { id, reason }));
 
-    public static CashSession? OpenSession(OperationsState state) => state.Sessions.SingleOrDefault(s => s.ClosedAt is null);
-    private static CashSession RequireCash(OperationsState state) => OpenSession(state) ?? throw new ArgumentException("Abre caja antes de registrar esta operación.");
+    public static CashSession? OpenSession(OperationsState state, string? scope=null) => state.Sessions.FirstOrDefault(s => s.ClosedAt is null && (scope is null || s.CashScope==scope));
+    public CashSession? CurrentCash => OpenSession(State,store.CashScope);
+    private CashSession RequireCash(OperationsState state) => OpenSession(state,store.CashScope) ?? throw new ArgumentException("Abre caja antes de registrar esta operación.");
     public static decimal Expected(OperationsState state, CashSession session, string currency)
     {
         var opening = currency switch { "USD" => session.OpeningUsd, "VES" => session.OpeningVes, "COP" => session.OpeningCop, _ => throw new ArgumentException("Moneda inválida.") };
         return opening + state.Cash.Where(e => e.SessionId == session.Id && e.Payment.Method == PaymentMethod.Efectivo && PhysicalCurrency(e.Payment.Currency) == currency).Sum(e => e.Payment.Amount);
     }
     public static string PhysicalCurrency(Currency currency) => currency switch { Currency.USD => "USD", Currency.COP => "COP", _ => "VES" };
-    private static void Cash(OperationsState state, Payment payment, decimal usd, string reason, Guid? doc)
+    private void Cash(OperationsState state, Payment payment, decimal usd, string reason, Guid? doc)
     {
         var session = RequireCash(state);
         if (payment.Method == PaymentMethod.Efectivo && Expected(state, session, PhysicalCurrency(payment.Currency)) + payment.Amount < 0) throw new ArgumentException("Efectivo insuficiente en caja para el egreso o cambio.");
         state.Cash.Add(new(Guid.NewGuid(), session.Id, DateTimeOffset.UtcNow, payment, usd, reason, doc));
     }
-    private static void ReverseCash(OperationsState state, Guid doc, BusinessSettings settings, string reason)
+    private void ReverseCash(OperationsState state, Guid doc, BusinessSettings settings, string reason)
     {
         var entries = state.Cash.Where(e => e.DocumentId == doc).ToList();
         if (entries.Count == 0) return;
@@ -120,19 +123,19 @@ public sealed partial class OperationsService(IOperationsStore store)
     {
         if (!settings.Cash) throw new ArgumentException("Activa caja.");
         Amount(usd, true); Amount(ves, true); Amount(cop, true);
-        if (OpenSession(state) is not null) throw new ArgumentException("Ya hay una caja abierta.");
-        state.Sessions.Add(new() { OpeningUsd = usd, OpeningVes = ves, OpeningCop = cop }); return true;
-    }, "Caja abierta");
+        if (OpenSession(state,store.CashScope) is not null) throw new ArgumentException("Ya hay una caja abierta.");
+        state.Sessions.Add(new() { Name=store.CashName, CashScope=store.CashScope, OpeningUsd = usd, OpeningVes = ves, OpeningCop = cop }); return true;
+    }, "Caja abierta", NetworkJson.Command("OpenCash",new { usd, ves, cop }));
     public void CloseCash(decimal usd, decimal ves, decimal cop) => store.Transact((state, _, _) =>
     {
         Amount(usd, true); Amount(ves, true); Amount(cop, true); var session = RequireCash(state);
         state.Sessions[state.Sessions.IndexOf(session)] = session with { ClosedAt = DateTimeOffset.UtcNow, CountedUsd = usd, CountedVes = ves, CountedCop = cop, ExpectedUsd = Expected(state, session, "USD"), ExpectedVes = Expected(state, session, "VES"), ExpectedCop = Expected(state, session, "COP") }; return true;
-    }, "Caja cerrada");
+    }, "Caja cerrada", NetworkJson.Command("CloseCash",new { usd, ves, cop }));
     public void CashMovement(Payment payment, bool expense, string reason) => store.Transact((state, _, settings) =>
     {
         if (!settings.Cash) throw new ArgumentException("Activa caja.");
         Reason(reason); var usd = Usd(payment, settings); Cash(state, expense ? payment with { Amount = -payment.Amount } : payment, expense ? -usd : usd, reason.Trim(), null); return true;
-    }, "Movimiento de caja");
+    }, "Movimiento de caja", NetworkJson.Command("CashMovement",new { payment, expense, reason }));
 
     public void SaveContact(Contact contact, bool supplier) => store.Transact((state, _, settings) =>
     {
@@ -142,7 +145,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         var balance = state.Sales.Where(s => s.CustomerId == contact.Id).Sum(s => Debt(state, s));
         if (!supplier && ((!contact.Active && balance > 0) || contact.CreditLimit < balance)) throw new ArgumentException("El cliente tiene deuda: no se puede desactivar ni reducir el límite por debajo del saldo.");
         if (old is null) list.Add(contact with { Name = contact.Name.Trim() }); else list[list.IndexOf(old)] = contact with { Name = contact.Name.Trim() }; return true;
-    }, supplier ? "Proveedor guardado" : "Cliente guardado");
+    }, supplier ? "Proveedor guardado" : "Cliente guardado", NetworkJson.Command("SaveContact",new { contact, supplier }));
 
     public Purchase Buy(Guid supplierId, string reference, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Cost)> items, Payment payment) => store.Transact((state, products, settings) =>
     {
@@ -155,14 +158,14 @@ public sealed partial class OperationsService(IOperationsStore store)
         foreach (var line in lines) Move(state, line.ProductId, line.Quantity, "Compra", purchase.Id);
         if (settings.Cash) { RequireCash(state); if (total > 0) Cash(state, payment with { Amount = -payment.Amount }, -total, "Compra", purchase.Id); }
         state.Purchases.Add(purchase); return purchase;
-    }, "Compra registrada");
+    }, "Compra registrada", NetworkJson.Command("Buy",new { supplierId, reference, items, payment }));
     public void VoidPurchase(Guid id, string reason) => store.Transact((state, _, settings) =>
     {
         Reason(reason); var purchase = state.Purchases.SingleOrDefault(p => p.Id == id) ?? throw new ArgumentException("Compra inexistente.");
         if (purchase.Voided) throw new ArgumentException("La compra ya está anulada.");
         foreach (var line in purchase.Lines) Move(state, line.ProductId, -line.Quantity, "Anulación de compra: " + reason, id);
         ReverseCash(state, id, settings, reason); state.Purchases[state.Purchases.IndexOf(purchase)] = purchase with { Voided = true, VoidReason = reason.Trim() }; return true;
-    }, "Compra anulada");
+    }, "Compra anulada", NetworkJson.Command("VoidPurchase",new { id, reason }));
     public CreditPayment PayDebt(Guid saleId, Payment payment) => store.Transact((state, _, settings) =>
     {
         if (!settings.Credit || !settings.Customers) throw new ArgumentException("Activa clientes y créditos.");
@@ -172,12 +175,12 @@ public sealed partial class OperationsService(IOperationsStore store)
         var abono = new CreditPayment { SaleId = saleId, Payment = payment, Rates = Rates(settings), Usd = usd };
         if (settings.Cash) Cash(state, payment, usd, "Abono de crédito", abono.Id);
         state.Abonos.Add(abono); return abono;
-    }, "Abono registrado");
+    }, "Abono registrado", NetworkJson.Command("PayDebt",new { saleId, payment }));
     public void VoidDebtPayment(Guid id, string reason) => store.Transact((state, _, settings) =>
     {
         Reason(reason); var abono = state.Abonos.SingleOrDefault(a => a.Id == id) ?? throw new ArgumentException("Abono inexistente.");
         if (abono.Voided) throw new ArgumentException("El abono ya está anulado.");
         if(state.Returns.Any(r=>r.SaleId==abono.SaleId)) throw new ArgumentException("Esta venta tiene devoluciones; no se puede alterar un abono que ya participó en su liquidación.");
         ReverseCash(state, id, settings, reason); state.Abonos[state.Abonos.IndexOf(abono)] = abono with { Voided = true, VoidReason = reason.Trim() }; return true;
-    }, "Abono anulado");
+    }, "Abono anulado", NetworkJson.Command("VoidDebtPayment",new { id, reason }));
 }
