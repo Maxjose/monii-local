@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Monii.Domain;
 using System.Security.Cryptography;
 
@@ -43,7 +43,7 @@ public sealed partial class SqliteStore
         var initial=!HasUsers; if(!initial) Require(Permission.Users);
         if(string.IsNullOrWhiteSpace(username)||string.IsNullOrWhiteSpace(name)||!Enum.IsDefined(role)) throw new ArgumentException("Completa nombre, usuario y rol válido.");
         if(initial && (role!=UserRole.Administrador||!active)) throw new ArgumentException("La primera cuenta debe ser un administrador activo.");
-        if(password is not null && password.Length<12) throw new ArgumentException("La contraseña debe tener al menos 12 caracteres.");
+        if(password is not null && password.Length<8) throw new ArgumentException("La contraseña debe tener al menos 8 caracteres.");
         using var c=Open(); using var tx=c.BeginTransaction(deferred:false); using var cmd=c.CreateCommand(); cmd.Transaction=tx;
         cmd.CommandText="SELECT COUNT(*) FROM users WHERE active=1 AND role=0 AND id<>$id"; cmd.Parameters.AddWithValue("$id",id?.ToString()??"");
         if(!initial && (!active||role!=UserRole.Administrador) && Convert.ToInt32(cmd.ExecuteScalar())==0)

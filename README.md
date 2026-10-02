@@ -6,6 +6,7 @@ Aplicación Windows en español desarrollada con C#, .NET 10, WPF y SQLite. Admi
 - Modo local y modo de red, autenticación central, cajas por equipo y protección contra operaciones duplicadas.
 - Catálogo y categorías: creación, edición, búsqueda, códigos, costos/precios USD y desactivación con historial.
 - Inventario, compras/proveedores, ventas, caja, clientes, créditos y abonos.
+- Lotes y vencimientos: recepción, clasificación, FEFO, bloqueo de vencidos y reintegros originales. Guía en docs/LOTES.md.
 - Anulaciones, devoluciones parciales de ventas, reportes y auditoría.
 - Monedas opcionales: bolívares BCV, bolívares manuales y pesos colombianos.
 - Importación Excel .xlsx y CSV con vista previa, validaciones, actualización explícita y respaldo previo.
@@ -23,12 +24,12 @@ Desde la raíz:
     .\scripts\build.ps1 -Publish
 
 La compilación portable se genera en artifacts/Monii-0.7.0-win-x64/Monii.exe. Conservar toda la carpeta. Incluye el runtime .NET; no está incluida en Git.
-En la primera apertura se crea el administrador con contraseña de al menos 12 caracteres; no hay credenciales predeterminadas.
+En la primera apertura se crea el administrador con contraseña de al menos 8 caracteres; no hay credenciales predeterminadas.
 Para probar por separado:
     .\scripts\run.ps1 -DataDirectory 'D:\Ruta\PruebasMonii'
 
 ## Datos
-Base predeterminada: %LOCALAPPDATA%\Monii\monii.db. Esquema SQLite 5 con migraciones y copia previa al actualizar desde versiones anteriores.
+Base predeterminada: %LOCALAPPDATA%\Monii\monii.db. Esquema SQLite 6 con migraciones y copia previa al actualizar desde versiones anteriores.
 Las bases de datos, respaldos, binarios, archivos de prueba y herramientas locales se excluyen de Git.
 Desactivar productos o módulos conserva el historial. Caja abierta y deudas pendientes impiden desactivar funciones necesarias.
 Los datos locales no están cifrados: se requiere controlar el acceso al equipo y a sus respaldos.

@@ -94,3 +94,12 @@ El botón Ingresar muestra un icono animado y «Iniciando sesión…» durante a
 
 ### Ajuste visual del acceso
 Indicador sustituido por aro vectorial animado, centrado y sin texto. Conserva la altura y anchura del botón. Verificado visualmente y mediante 91 comprobaciones WPF; portable actualizado.
+
+## Entrega: lotes, inicio y contraseñas
+Operativo: recepción de varios lotes por producto, clasificación del stock anterior, ajustes específicos, listado buscable, alertas a 30 días, FEFO automático y bloqueo de vencidos. Ventas, devoluciones y anulaciones conservan el lote original. La anulación de compra no sustituye un lote consumido por otro. Local y red comparten reglas. Migración SQLite 6 conserva datos y devoluciones previas con copia de seguridad. Guía: LOTES.md.
+
+Inicio: retirados el título redundante y botón de explorar demo; contenido acercado al encabezado. El lema del menú se conserva. Contraseñas nuevas y cambios: mínimo 8 caracteres; las existentes continúan válidas.
+
+Verificaciones: compilación sin errores ni advertencias; 260 comprobaciones locales (21 de lotes/contraseñas/migración/restauración), 60 de red HTTPS, 95 de interfaz WPF y 13 de interfaz conectada incluidas en la prueba de red. Capturas revisadas del inicio, listado y compra. Datos de prueba aislados. Portable actualizado, con servidor y guía.
+
+Decisiones documentadas: fecha válida hasta finalizar el día indicado; recepción física de vencidos permitida, venta bloqueada; fecha de lote inmutable, código por producto; sin lote para stock previo; costo sigue siendo último costo de compra; reintegros automáticos al lote original; aviso a 30 días. No incluye selección manual de lote al vender, costo contable por lote ni notificaciones externas. Servicio Windows real, LAN física y Windows 10 mantienen sus pruebas pendientes anteriores.

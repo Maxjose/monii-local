@@ -10,7 +10,7 @@
     </Border>
     <Grid Grid.Column="1" Margin="30,24">
       <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-      <Grid Margin="0,0,0,24"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock x:Name="BusinessName" FontSize="13" Foreground="{DynamicResource ThemeMuted}" /><TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel><Border Grid.Column="1" Background="#DCFCE7" CornerRadius="12" Padding="14,8" VerticalAlignment="Center"><TextBlock x:Name="ConnectionLabel" Text="●  Funcionamiento local" Foreground="#166534" FontSize="12" /></Border></Grid>
+      <Grid x:Name="PageHeader" Margin="0,0,0,24"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock x:Name="BusinessName" FontSize="13" Foreground="{DynamicResource ThemeMuted}" /><TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel><Border Grid.Column="1" Background="#DCFCE7" CornerRadius="12" Padding="14,8" VerticalAlignment="Center"><TextBlock x:Name="ConnectionLabel" Text="●  Funcionamiento local" Foreground="#166534" FontSize="12" /></Border></Grid>
       <ContentControl x:Name="PageContent" Grid.Row="1" />
       <TextBlock x:Name="UpdateNotice" Grid.Row="2" Visibility="Collapsed" Foreground="{DynamicResource ThemeAccentInk}" TextWrapping="Wrap" Margin="0,12,0,0" />
       <TextBlock x:Name="Status" Grid.Row="3" Text="Listo" Foreground="{DynamicResource ThemeMuted}" FontSize="12" Margin="0,16,0,0" TextWrapping="Wrap" />

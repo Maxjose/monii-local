@@ -38,6 +38,7 @@ public sealed partial class SqliteStore
         var previousSales = state.Sales.Count;
         var previousReturns = state.Returns.Count;
         var result = operation(state, products, settings);
+        ValidateLots(state);
         if(action=="Cliente guardado"&&state.Customers.Any(c=>c.CreditLimit!=previousLimits.GetValueOrDefault(c.Id))) Require(Permission.Credit);
         foreach (var sale in state.Sales.Skip(previousSales).ToList())
         {
@@ -97,7 +98,7 @@ public sealed partial class SqliteStore
         using var command = connection.CreateCommand(); command.CommandText = "PRAGMA integrity_check";
         if (command.ExecuteScalar()?.ToString() != "ok") throw new ArgumentException("El respaldo no supera la comprobación de integridad.");
         command.CommandText = "PRAGMA user_version"; var version = Convert.ToInt32(command.ExecuteScalar());
-        if (version is < 1 or > 5) throw new ArgumentException("El archivo no es un respaldo compatible de Monii.");
+        if (version is < 1 or > 6) throw new ArgumentException("El archivo no es un respaldo compatible de Monii.");
         command.CommandText = "PRAGMA foreign_key_check";
         using (var reader = command.ExecuteReader()) if (reader.Read()) throw new ArgumentException("El respaldo tiene relaciones inválidas.");
         command.CommandText = "SELECT payload FROM products";
@@ -113,6 +114,7 @@ public sealed partial class SqliteStore
             if (state.Stock.GroupBy(m => m.ProductId).Any(g => g.Sum(m => m.Quantity) < 0) || state.Sales.Any(s => Monii.Application.OperationsService.Debt(state, s) < 0) || state.Abonos.Any(a => !state.Sales.Any(s => s.Id == a.SaleId)) || state.Sales.Any(s => s.CustomerId is { } id && !state.Customers.Any(c => c.Id == id)) || state.Purchases.Any(p => !state.Suppliers.Any(s => s.Id == p.SupplierId)) || state.Cash.Any(e => !state.Sessions.Any(s => s.Id == e.SessionId)) || state.Sessions.Where(s=>s.ClosedAt is null).GroupBy(s=>s.CashScope).Any(g=>g.Count()>1))
                 throw new ArgumentException("El respaldo contiene saldos o relaciones operativas inválidas.");
             ValidateReturns(state);
+            if(version>=6)ValidateLots(state);
         }
         if(version>=3) ValidateNormalizedBackup(connection);
         if(version>=5)

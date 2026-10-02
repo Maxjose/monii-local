@@ -1,4 +1,4 @@
-using Monii.Application;
+﻿using Monii.Application;
 using Monii.Domain;
 using Monii.Infrastructure;
 
@@ -61,6 +61,7 @@ Check(BusinessService.ConvertPrice(1.25m, 50.123456m) == 62.65m, "Conversión y 
 service.Save(product with { Active = true });
 Check(service.Products().Count == 1, "Reactivar producto");
 Console.WriteLine($"VERIFICACIÓN COMPLETA: {passed} comprobaciones. Base de prueba: {path}");
+LotChecks.Run();
 OperationChecks.Run();
 NextChecks.Run();
 DesignChecks.Run();

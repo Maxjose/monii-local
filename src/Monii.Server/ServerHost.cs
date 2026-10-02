@@ -104,10 +104,10 @@ public static partial class ServerHost
             var store=Authorized(context);if(request.Id==Guid.Empty)throw new ArgumentException("Identificador de operación inválido.");
             if(request.Epoch!=store.NetworkEpoch)throw new ArgumentException("La base fue restaurada. Esta petición corresponde al historial anterior y no se repetirá. Revisa sus documentos.");
             store.RequestId=request.Id;store.RequestHash=Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(request.Command,NetworkJson.Options)));
-            var allowed=new HashSet<string>(["Adjust","Sell","VoidSale","OpenCash","CloseCash","CashMovement","SaveContact","Buy","VoidPurchase","PayDebt","VoidDebtPayment","ReturnSale"]);
+            var allowed=new HashSet<string>(["ClassifyLot","Adjust","Sell","VoidSale","OpenCash","CloseCash","CashMovement","SaveContact","Buy","VoidPurchase","PayDebt","VoidDebtPayment","ReturnSale"]);
             if(!allowed.Contains(request.Command.Method))throw new ArgumentException("Operación desconocida.");
             var method=typeof(OperationsService).GetMethod(request.Command.Method)!;
-            var parameters=method.GetParameters().Select(p=>request.Command.Arguments.GetProperty(p.Name!).Deserialize(p.ParameterType,NetworkJson.Options)).ToArray();
+            var parameters=method.GetParameters().Select(p=>request.Command.Arguments.TryGetProperty(p.Name!,out var argument)?argument.Deserialize(p.ParameterType,NetworkJson.Options):p.HasDefaultValue?p.DefaultValue:throw new ArgumentException("Falta el campo "+p.Name)).ToArray();
             return Results.Json(method.Invoke(new OperationsService(store),parameters)??true,NetworkJson.Options);
         });
         app.MapPost("/api/read",async(RemoteCommand request,HttpContext context)=>

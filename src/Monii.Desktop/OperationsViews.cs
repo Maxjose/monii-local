@@ -13,12 +13,12 @@ public partial class MainWindow
 {
     private readonly ObservableCollection<CartLine> saleCart = [];
 
-    private void Form(string title, StackPanel panel, Action commit, string saveLabel = "Guardar")
+    private void Form(string title, StackPanel panel, Action commit, string saveLabel = "Guardar",double width=620)
     {
         panel.Margin = new Thickness(24);
         panel.Children.Insert(0, Text(title, 24));
         var error = Text("", 13, "#B91C1C"); panel.Children.Add(error);
-        var dialog = new Window { Title = "Monii · " + title, Owner = this, Width = 620, Height = Math.Min(740, SystemParameters.WorkArea.Height - 60), MinHeight = 400, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#F3F6FA") };
+        var dialog = new Window { Title = "Monii · " + title, Owner = this, Width = Math.Min(width,SystemParameters.WorkArea.Width-60), Height = Math.Min(740, SystemParameters.WorkArea.Height - 60), MinHeight = 400, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#F3F6FA") };
         var actions = new WrapPanel();
         actions.Children.Add(Button(saveLabel, () => { try { commit(); dialog.Close(); } catch (Exception exception) { error.Text = FriendlyError(exception); } }));
         actions.Children.Add(Button("Cancelar", () => dialog.Close())); panel.Children.Add(actions); dialog.Content = Scroll(panel); dialog.ShowDialog();
@@ -39,22 +39,33 @@ public partial class MainWindow
         var header = new StackPanel(); header.Children.Add(Text("Existencias y alertas", 20));
         var search = Field(header, "Buscar producto", "");
         var grid = Table(("Producto", "Name", 3), ("Código", "Code", 1), ("Unidad", "Unit", 1), ("Stock", "Quantity", 1), ("Mínimo", "Minimum", 1), ("Estado", "Alert", 1));
-        void Reload() { var balances=storage.StockBalances(); grid.ItemsSource = service.Products(search.Text, true).Select(p => new StockRow(p.Id, p.Name, p.Code, p.Unit, balances.GetValueOrDefault(p.Id), p.MinimumStock, !p.Active ? "Inactivo" : balances.GetValueOrDefault(p.Id) <= p.MinimumStock ? "Stock bajo" : "Disponible")).ToList(); }
+        var lotSummary=service.Settings.Lots?Text("",14,"#B45309"):null;
+        void Reload() { if(lotSummary is not null) { var lotState=operations.State;var lots=service.Products(includeInactive:true).SelectMany(p=>OperationsService.Lots(lotState,p.Id)).Where(l=>l.Quantity>0).ToList();lotSummary.Text=$"Lotes vencidos: {lots.Count(l=>l.Status=="Vencido")} · Vencen en 30 días: {lots.Count(l=>l.Status=="Vence pronto")}"; }var balances=storage.StockBalances(); grid.ItemsSource = service.Products(search.Text, true).Select(p => new StockRow(p.Id, p.Name, p.Code, p.Unit, balances.GetValueOrDefault(p.Id), p.MinimumStock, !p.Active ? "Inactivo" : balances.GetValueOrDefault(p.Id) <= p.MinimumStock ? "Stock bajo" : "Disponible")).ToList(); }
         var actions = new WrapPanel();
         actions.Children.Add(Button("Registrar ajuste", () =>
         {
             if (grid.SelectedItem is not StockRow row) { Status.Text = "Selecciona un producto."; return; }
             var panel = new StackPanel(); panel.Children.Add(Text(row.Name));
-            var delta = Field(panel, "Cantidad (+ entrada, − salida)", "0"); var reason = Field(panel, "Motivo", "");
-            Form("Ajuste de inventario", panel, () => { operations.Adjust(row.Id, ParseNumber(delta.Text, "cantidad"), reason.Text); Reload(); Status.Text = "Ajuste registrado."; });
+            var delta = Field(panel, "Cantidad (+ entrada, − salida)", "0"); var reason = Field(panel, "Motivo", "");var lotFields=LotFields(panel);
+            Form("Ajuste de inventario", panel, () => { operations.Adjust(row.Id, ParseNumber(delta.Text, "cantidad"), reason.Text,ReadLot(lotFields).Code,ReadLot(lotFields).Expiry); Reload(); Status.Text = "Ajuste registrado."; });
         }));
         actions.Children.Add(Button("Ver movimientos", () =>
         {
             if (grid.SelectedItem is not StockRow row) { Status.Text = "Selecciona un producto."; return; }
             var panel = new StackPanel(); panel.Children.Add(Text(row.Name, 20));
-            foreach (var move in operations.State.Stock.Where(m => m.ProductId == row.Id).OrderByDescending(m => m.At)) panel.Children.Add(Text($"{move.At.ToLocalTime():g} · {move.Quantity:+0.###;-0.###} · {move.Reason}"));
+            foreach (var move in operations.State.Stock.Where(m => m.ProductId == row.Id).OrderByDescending(m => m.At)) panel.Children.Add(Text($"{move.At.ToLocalTime():g} · {move.Quantity:+0.###;-0.###} · {move.Reason} · Lote: {(move.LotCode.Length==0?"Sin lote":move.LotCode)} · Vence: {move.Expiry?.ToString("dd/MM/yyyy")??"—"}"));
             Form("Movimientos", panel, () => { }, "Cerrar");
         }));
+        if(service.Settings.Lots)
+        {
+            actions.Children.Add(Button("Lotes y vencimientos",ShowLots));
+            actions.Children.Add(Button("Clasificar existencias sin lote",()=> {
+                if(grid.SelectedItem is not StockRow row) { Status.Text="Selecciona un producto.";return; }
+                var panel=new StackPanel();panel.Children.Add(Text(row.Name));var quantity=Field(panel,"Cantidad a clasificar","1");var lotFields=LotFields(panel);var reason=Field(panel,"Motivo","");
+                Form("Asignar lote a existencias",panel,()=> { var lot=ReadLot(lotFields);operations.ClassifyLot(row.Id,ParseNumber(quantity.Text,"cantidad"),lot.Code,lot.Expiry,reason.Text);Reload(); });
+            }));
+            header.Children.Add(lotSummary!);
+        }
         header.Children.Add(actions); search.TextChanged += (_, _) => Reload(); Reload(); return Page(header, grid);
     }
 
@@ -161,7 +172,7 @@ public partial class MainWindow
         panel.Children.Add(Button("Guardar comprobante TXT", () => ExportText($"venta-{sale.Number}.txt", text)));
         Form("Venta #" + sale.Number, panel, () => { }, "Cerrar");
     }
-    private string Receipt(Sale sale) => $"{service.Settings.Name}\nCOMPROBANTE INTERNO · No es factura fiscal\nVenta #{sale.Number} · {sale.At.ToLocalTime():g}\nCliente: {sale.CustomerName}\n" + string.Join("\n", sale.Lines.Select(l => $"{l.Code} · {l.Name} · {l.Quantity} {l.Unit} × USD {l.Price:N2} = {l.Total:N2}")) + $"\nDescuento USD {sale.Discount:N2}\nTotal USD {sale.Total:N2}\nCambio USD {sale.ChangeUsd:N2}\nDeuda inicial USD {sale.InitialDebt:N2}\nSaldo pendiente USD {OperationsService.Debt(operations.State, sale):N2}\n" + string.Join("\n", sale.Payments.Select(p => $"{p.Method} · {CurrencyLabel(p.Currency)} {p.Amount:N2}")) + $"\nTasas por USD: BCV {sale.Rates.Bcv}, Bs manual {sale.Rates.Manual}, COP {sale.Rates.Cop}\nDevoluciones USD {operations.State.Returns.Where(r=>r.SaleId==sale.Id).Sum(r=>r.Total):N2} · Neto USD {OperationsService.NetTotal(operations.State,sale):N2}\nUsuario: {sale.SellerName}\nEstado: {(sale.Voided ? "ANULADA · " + sale.VoidReason : "Vigente")}";
+    private string Receipt(Sale sale) => $"{service.Settings.Name}\nCOMPROBANTE INTERNO · No es factura fiscal\nVenta #{sale.Number} · {sale.At.ToLocalTime():g}\nCliente: {sale.CustomerName}\n" + string.Join("\n", sale.Lines.Select(l => $"{l.Code} · {l.Name} · {l.Quantity} {l.Unit} × USD {l.Price:N2} = {l.Total:N2}")) + SaleLotDetails(sale) + $"\nDescuento USD {sale.Discount:N2}\nTotal USD {sale.Total:N2}\nCambio USD {sale.ChangeUsd:N2}\nDeuda inicial USD {sale.InitialDebt:N2}\nSaldo pendiente USD {OperationsService.Debt(operations.State, sale):N2}\n" + string.Join("\n", sale.Payments.Select(p => $"{p.Method} · {CurrencyLabel(p.Currency)} {p.Amount:N2}")) + $"\nTasas por USD: BCV {sale.Rates.Bcv}, Bs manual {sale.Rates.Manual}, COP {sale.Rates.Cop}\nDevoluciones USD {operations.State.Returns.Where(r=>r.SaleId==sale.Id).Sum(r=>r.Total):N2} · Neto USD {OperationsService.NetTotal(operations.State,sale):N2}\nUsuario: {sale.SellerName}\nEstado: {(sale.Voided ? "ANULADA · " + sale.VoidReason : "Vigente")}";
 
     private UIElement CashPage()
     {
@@ -220,7 +231,7 @@ public partial class MainWindow
         var tabs = new TabControl(); var header = new StackPanel(); var grid = Table(("Fecha", "At", 2), ("Proveedor", "SupplierName", 2), ("Referencia", "Reference", 2), ("Total USD", "Total", 1), ("Anulada", "Voided", 1));
         void Reload() { grid.ItemsSource = operations.State.Purchases.OrderByDescending(p => p.At).ToList(); }
         var actions = new WrapPanel(); actions.Children.Add(Button("Nueva compra", () => PurchaseForm(Reload)));
-        actions.Children.Add(Button("Detalle compra", () => { if (grid.SelectedItem is Purchase p) { var panel = new StackPanel(); panel.Children.Add(Text($"{p.Reference} · {p.SupplierName}\nTotal USD {p.Total:N2}\n" + string.Join("\n", p.Lines.Select(l => $"{l.Name} · {l.Quantity} × {l.Cost:N2} = {l.Total:N2}")))); Form("Compra", panel, () => { }, "Cerrar"); } }));
+        actions.Children.Add(Button("Detalle compra", () => { if (grid.SelectedItem is Purchase p) { var panel = new StackPanel(); panel.Children.Add(Text($"{p.Reference} · {p.SupplierName}\nTotal USD {p.Total:N2}\n" + string.Join("\n", p.Lines.Select(l => $"{l.Name} · {l.Quantity} × {l.Cost:N2} = {l.Total:N2} · Lote: {(l.LotCode.Length==0?"Sin lote":l.LotCode)} · Vence: {l.Expiry?.ToString("dd/MM/yyyy")??"—"}")))); Form("Compra", panel, () => { }, "Cerrar"); } }));
         actions.Children.Add(Button("Anular compra", () => { if (grid.SelectedItem is Purchase p) AskReason("Anular compra", reason => { operations.VoidPurchase(p.Id, reason); Reload(); }); else Status.Text = "Selecciona una compra."; }));
         header.Children.Add(actions); Reload(); tabs.Items.Add(new TabItem { Header = "Compras", Content = Page(header, grid) }); tabs.Items.Add(new TabItem { Header = "Proveedores", Content = Contacts(true) }); return tabs;
     }
@@ -228,20 +239,21 @@ public partial class MainWindow
     {
         var panel = new StackPanel(); panel.Children.Add(Text("Proveedor")); var supplier = new ComboBox { ItemsSource = operations.State.Suppliers.Where(c => c.Active).ToList(), DisplayMemberPath = "Name" }; panel.Children.Add(supplier);
         var reference = Field(panel, "Referencia de compra", ""); panel.Children.Add(Text("Producto")); var product = new ComboBox { ItemsSource = service.Products(), DisplayMemberPath = "Name" }; panel.Children.Add(product);
-        var qty = Field(panel, "Cantidad", "1"); var cost = Field(panel, "Costo unitario USD", "0");
+        var qty = Field(panel, "Cantidad", "1"); var cost = Field(panel, "Costo unitario USD", "0");var lotFields=LotFields(panel);
         product.SelectionChanged += (_, _) => { if (product.SelectedItem is Product p) cost.Text = p.CostUsd.ToString("0.00", UiCulture); };
-        var lines = new ObservableCollection<PurchaseDraft>(); var grid = Table(("Producto", "Name", 3), ("Cantidad", "Quantity", 1), ("Costo", "Cost", 1)); grid.Height = 160; grid.ItemsSource = lines;
+        var lines = new ObservableCollection<PurchaseDraft>(); var grid = Table(("Producto", "Name", 3), ("Cantidad", "Quantity", 1), ("Costo", "Cost", 1)); if(service.Settings.Lots) { grid.Columns.Add(Column("Lote","LotCode"));grid.Columns.Add(Column("Vence","Expiry")); }grid.Height = 160; grid.ItemsSource = lines;
         var total = Text("Total USD 0,00", 20); var payment = PaymentFields(panel, "Pago de compra");
         var actions = new WrapPanel(); actions.Children.Add(Button("Agregar línea", () => Safe(() =>
         {
             if (product.SelectedItem is not Product p) throw new ArgumentException("Selecciona un producto.");
-            if (lines.Any(l => l.ProductId == p.Id)) throw new ArgumentException("El producto ya está en la compra. Quita su línea para reemplazarla.");
-            var q = ParseNumber(qty.Text, "cantidad"); var c = ParseNumber(cost.Text, "costo"); OperationsService.Quantity(p, q); OperationsService.Amount(c, true); lines.Add(new(p.Id, p.Name, q, c));
+            var lot=ReadLot(lotFields);
+            if(lines.Any(l=>l.ProductId==p.Id&&l.LotCode.Equals(lot.Code,StringComparison.OrdinalIgnoreCase)))throw new ArgumentException("El producto y lote ya están en la compra. Quita su línea para reemplazarla.");
+            var q = ParseNumber(qty.Text, "cantidad"); var c = ParseNumber(cost.Text, "costo"); OperationsService.Quantity(p, q); OperationsService.Amount(c, true); lines.Add(new(p.Id,p.Name,q,c) { LotCode=lot.Code,Expiry=lot.Expiry });
             var sum = lines.Sum(l => OperationsService.Money(l.Quantity * l.Cost)); total.Text = $"Total USD {sum:N2}"; if (payment.Currency.SelectedItem?.ToString() == "USD") payment.Amount.Text = sum.ToString("0.00", UiCulture);
         })));
         actions.Children.Add(Button("Quitar línea", () => { if (grid.SelectedItem is PurchaseDraft line) lines.Remove(line); var sum = lines.Sum(l => OperationsService.Money(l.Quantity * l.Cost)); total.Text = $"Total USD {sum:N2}"; if (payment.Currency.SelectedItem?.ToString() == "USD") payment.Amount.Text = sum.ToString("0.00", UiCulture); }));
         panel.Children.Add(actions); panel.Children.Add(grid); panel.Children.Add(total);
-        Form("Recibir compra", panel, () => { if (supplier.SelectedItem is not Contact c) throw new ArgumentException("Selecciona proveedor."); operations.Buy(c.Id, reference.Text, lines.Select(l => (l.ProductId, l.Quantity, l.Cost)).ToList(), ReadPayment(payment)); refresh(); }, "Registrar compra");
+        Form("Recibir compra", panel, () => { if (supplier.SelectedItem is not Contact c) throw new ArgumentException("Selecciona proveedor."); operations.Buy(c.Id, reference.Text, lines.Select(l => (l.ProductId, l.Quantity, l.Cost)).ToList(), ReadPayment(payment),lines.Select(l=>new LotReceipt(l.LotCode,l.Expiry)).ToList()); refresh(); }, "Registrar compra");
     }
 
     private UIElement Credits()
@@ -332,7 +344,7 @@ public partial class MainWindow
 }
 
 public sealed record CartLine(Guid ProductId, string Name, decimal Quantity, decimal Price) { public decimal Total => OperationsService.Money(Quantity * Price); }
-public sealed record PurchaseDraft(Guid ProductId, string Name, decimal Quantity, decimal Cost);
+public sealed record PurchaseDraft(Guid ProductId, string Name, decimal Quantity, decimal Cost) { public string LotCode { get; init; }="";public DateOnly? Expiry { get; init; } }
 public sealed record StockRow(Guid Id, string Name, string Code, string Unit, decimal Quantity, decimal Minimum, string Alert);
 public sealed record DebtRow(Guid Id, long Number, string Customer, DateOnly? Due, decimal Balance, string Status);
 public sealed record AbonoRow(Guid Id, DateTimeOffset At, long Number, string Customer, decimal Usd, bool Voided);

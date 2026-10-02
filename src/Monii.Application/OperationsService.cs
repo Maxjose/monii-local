@@ -43,15 +43,17 @@ public sealed partial class OperationsService(IOperationsStore store)
     private static void Reason(string reason) { if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Escribe un motivo o referencia."); }
     private static void Move(OperationsState state, Guid product, decimal quantity, string reason, Guid? doc)
     {
-        if (Stock(state, product) + quantity < 0) throw new ArgumentException("Existencias insuficientes. No se permite stock negativo.");
-        state.Stock.Add(new(Guid.NewGuid(), product, DateTimeOffset.UtcNow, quantity, reason, doc));
+        if(quantity<0)ConsumeLots(state,product,-quantity,reason,doc,false);
+        else MoveExact(state,product,quantity,reason,doc,"",null);
     }
 
-    public void Adjust(Guid productId, decimal delta, string reason) => store.Transact((state, products, settings) =>
+    public void Adjust(Guid productId, decimal delta, string reason,string lotCode="",DateOnly? expiry=null) => store.Transact((state, products, settings) =>
     {
         if (!settings.Inventory) throw new ArgumentException("Activa inventario para ajustar existencias.");
-        Reason(reason); Quantity(Product(products, productId), Math.Abs(delta)); Move(state, productId, delta, reason.Trim(), null); return true;
-    }, "Ajuste de inventario", NetworkJson.Command("Adjust",new { productId, delta, reason }));
+        Reason(reason); Quantity(Product(products, productId), Math.Abs(delta));
+        if(lotCode.Length>0||expiry is not null) { if(!settings.Lots)throw new ArgumentException("Activa lotes para registrar un lote.");MoveExact(state,productId,delta,reason.Trim(),null,lotCode,expiry); }
+        else Move(state,productId,delta,reason.Trim(),null);return true;
+    }, "Ajuste de inventario", NetworkJson.Command("Adjust",new { productId, delta, reason,lotCode,expiry }));
 
     public Sale Sell(IReadOnlyList<(Guid ProductId, decimal Quantity)> items, decimal discount, IReadOnlyList<Payment> payments, Guid? customerId = null, DateOnly? due = null) => store.Transact((state, products, settings) =>
     {
@@ -75,7 +77,7 @@ public sealed partial class OperationsService(IOperationsStore store)
             if (current + debt > customer.CreditLimit) throw new ArgumentException("La venta supera el límite de crédito del cliente.");
         }
         var sale = new Sale { Number = state.Sales.Count + 1L, Lines = lines, Discount = discount, Total = total, Payments = payments.ToList(), ChangeUsd = change, InitialDebt = debt, CustomerId = customer?.Id, CustomerName = customer?.Name ?? "", Due = debt > 0 ? due : null, Rates = Rates(settings), StockAffected = settings.Inventory };
-        if (settings.Inventory) foreach (var line in lines) Move(state, line.ProductId, -line.Quantity, "Venta", sale.Id);
+        if (settings.Inventory) foreach (var line in lines) ConsumeLots(state,line.ProductId,line.Quantity,"Venta",sale.Id,true);
         if (settings.Cash)
         {
             RequireCash(state);
@@ -91,7 +93,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         if (sale.Voided) throw new ArgumentException("La venta ya está anulada.");
         if (state.Returns.Any(r=>r.SaleId==id)) throw new ArgumentException("Esta venta tiene devoluciones. Devuelve las cantidades restantes en lugar de anularla.");
         if (state.Abonos.Any(a => a.SaleId == id && !a.Voided)) throw new ArgumentException("Anula los abonos antes de anular esta venta.");
-        if (sale.StockAffected) foreach (var line in sale.Lines) Move(state, line.ProductId, line.Quantity, "Anulación de venta: " + reason, id);
+        if (sale.StockAffected) foreach (var line in sale.Lines) RestoreSaleLots(state,sale,line.ProductId,line.Quantity,"Anulación de venta: "+reason,id);
         ReverseCash(state, id, settings, reason);
         state.Sales[state.Sales.IndexOf(sale)] = sale with { Voided = true, VoidReason = reason.Trim() }; return true;
     }, "Venta anulada", NetworkJson.Command("VoidSale",new { id, reason }));
@@ -147,23 +149,27 @@ public sealed partial class OperationsService(IOperationsStore store)
         if (old is null) list.Add(contact with { Name = contact.Name.Trim() }); else list[list.IndexOf(old)] = contact with { Name = contact.Name.Trim() }; return true;
     }, supplier ? "Proveedor guardado" : "Cliente guardado", NetworkJson.Command("SaveContact",new { contact, supplier }));
 
-    public Purchase Buy(Guid supplierId, string reference, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Cost)> items, Payment payment) => store.Transact((state, products, settings) =>
+    public Purchase Buy(Guid supplierId, string reference, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Cost)> items, Payment payment,IReadOnlyList<LotReceipt>? lots=null) => store.Transact((state, products, settings) =>
     {
         if (!settings.Purchases || !settings.Inventory) throw new ArgumentException("Activa compras e inventario para recibir mercancía.");
-        Reason(reference); if (items.Count == 0 || items.Select(i => i.ProductId).Distinct().Count() != items.Count) throw new ArgumentException("Agrega líneas sin productos duplicados.");
+        Reason(reference); if(items.Count==0)throw new ArgumentException("Agrega líneas a la compra.");
+        if(lots is null&&items.Select(i=>i.ProductId).Distinct().Count()!=items.Count)throw new ArgumentException("Agrega líneas sin productos duplicados o identifica sus lotes.");
+        if(lots is not null&&lots.Count!=items.Count)throw new ArgumentException("Cada línea debe tener su información de lote.");
+        if(lots?.Any(l=>l.Code.Length>0||l.Expiry is not null)==true&&!settings.Lots)throw new ArgumentException("Activa lotes antes de recibirlos.");
         var supplier = state.Suppliers.FirstOrDefault(s => s.Id == supplierId && s.Active) ?? throw new ArgumentException("Selecciona proveedor activo.");
-        var lines = items.Select(i => { var p = Product(products, i.ProductId); Quantity(p, i.Quantity); Amount(i.Cost, true); return new DocumentLine(p.Id, p.Name, p.Code, p.Unit, i.Quantity, i.Cost, i.Cost); }).ToList();
+        var lines = items.Select((i,index) => { var p = Product(products, i.ProductId); Quantity(p, i.Quantity); Amount(i.Cost, true);var lot=ValidateLot(state,p.Id,lots?[index].Code??"",lots?[index].Expiry);return new DocumentLine(p.Id,p.Name,p.Code,p.Unit,i.Quantity,i.Cost,i.Cost) { LotCode=lot.Code,Expiry=lot.Expiry }; }).ToList();
+        if(lines.GroupBy(l=>(l.ProductId,l.LotCode)).Any(g=>g.Select(l=>l.Expiry).Distinct().Count()>1))throw new ArgumentException("Un lote no puede tener varias fechas.");
         var total = lines.Sum(l => l.Total); if (Usd(payment, settings, total == 0) != total) throw new ArgumentException("El pago debe coincidir con el total de la compra convertido a USD.");
         var purchase = new Purchase { SupplierId = supplierId, SupplierName = supplier.Name, Reference = reference.Trim(), Lines = lines, Total = total, Payment = payment, Rates = Rates(settings) };
-        foreach (var line in lines) Move(state, line.ProductId, line.Quantity, "Compra", purchase.Id);
+        foreach (var line in lines) MoveExact(state,line.ProductId,line.Quantity,"Compra",purchase.Id,line.LotCode,line.Expiry);
         if (settings.Cash) { RequireCash(state); if (total > 0) Cash(state, payment with { Amount = -payment.Amount }, -total, "Compra", purchase.Id); }
         state.Purchases.Add(purchase); return purchase;
-    }, "Compra registrada", NetworkJson.Command("Buy",new { supplierId, reference, items, payment }));
+    }, "Compra registrada", NetworkJson.Command("Buy",new { supplierId, reference, items, payment,lots }));
     public void VoidPurchase(Guid id, string reason) => store.Transact((state, _, settings) =>
     {
         Reason(reason); var purchase = state.Purchases.SingleOrDefault(p => p.Id == id) ?? throw new ArgumentException("Compra inexistente.");
         if (purchase.Voided) throw new ArgumentException("La compra ya está anulada.");
-        foreach (var line in purchase.Lines) Move(state, line.ProductId, -line.Quantity, "Anulación de compra: " + reason, id);
+        foreach (var line in purchase.Lines) MoveExact(state,line.ProductId,-line.Quantity,"Anulación de compra: "+reason,id,line.LotCode,line.Expiry);
         ReverseCash(state, id, settings, reason); state.Purchases[state.Purchases.IndexOf(purchase)] = purchase with { Voided = true, VoidReason = reason.Trim() }; return true;
     }, "Compra anulada", NetworkJson.Command("VoidPurchase",new { id, reason }));
     public CreditPayment PayDebt(Guid saleId, Payment payment) => store.Transact((state, _, settings) =>

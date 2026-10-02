@@ -1,4 +1,4 @@
-using Monii.Domain;
+﻿using Monii.Domain;
 
 namespace Monii.Application;
 
@@ -37,7 +37,7 @@ public sealed partial class OperationsService
     {
         var document=CalculateReturn(state,saleId,items,reason,refundMethod);
         var sale=state.Sales.Single(s=>s.Id==saleId); var lines=document.Lines; var refund=document.RefundUsd;
-        if(sale.StockAffected) foreach(var line in lines) Move(state,line.ProductId,line.Quantity,"Devolución: "+reason,document.Id);
+        if(sale.StockAffected) foreach(var line in lines) RestoreSaleLots(state,sale,line.ProductId,line.Quantity,"Devolución: "+reason,document.Id);
         if(refund>0)
         {
             if(!settings.Cash) throw new ArgumentException("Activa y abre caja para registrar el reintegro USD de una devolución.");

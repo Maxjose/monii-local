@@ -21,7 +21,7 @@ public sealed class LoginWindow : Window
         panel.Children.Add(new TextBlock { Text="Usuario",Margin=new Thickness(0,16,0,0) }); var username=new TextBox(); panel.Children.Add(username);
         TextBox? name=null;
         if(setup) { panel.Children.Add(new TextBlock { Text="Nombre" }); name=new TextBox(); panel.Children.Add(name); }
-        panel.Children.Add(new TextBlock { Text=setup?"Contraseña (al menos 12 caracteres)":"Contraseña" }); var password=new PasswordBox { Padding=new Thickness(10),Margin=new Thickness(0,8,0,8) }; panel.Children.Add(password);
+        panel.Children.Add(new TextBlock { Text=setup?"Contraseña (al menos 8 caracteres)":"Contraseña" }); var password=new PasswordBox { Padding=new Thickness(10),Margin=new Thickness(0,8,0,8) }; panel.Children.Add(password);
         var error=new TextBlock { TextWrapping=TextWrapping.Wrap,Foreground=Theme.Resource("ThemeError") }; panel.Children.Add(error);
         var submit=new Button { Content=setup?"Crear cuenta e ingresar":"Ingresar",IsDefault=true }; panel.Children.Add(submit);
         var busy=false;

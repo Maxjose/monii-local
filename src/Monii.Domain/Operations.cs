@@ -7,7 +7,12 @@ public sealed record RateSnapshot(decimal Bcv, decimal Manual, decimal Cop)
 {
     public decimal For(Currency currency) => currency switch { Currency.USD => 1, Currency.VES_BCV => Bcv, Currency.VES_Manual => Manual, Currency.COP => Cop, _ => throw new ArgumentException("Moneda inválida.") };
 }
-public sealed record StockMove(Guid Id, Guid ProductId, DateTimeOffset At, decimal Quantity, string Reason, Guid? DocumentId);
+public sealed record StockMove(Guid Id, Guid ProductId, DateTimeOffset At, decimal Quantity, string Reason, Guid? DocumentId)
+{
+    public string LotCode { get; init; } = "";
+    public DateOnly? Expiry { get; init; }
+    public Guid? SourceMoveId { get; init; }
+}
 public sealed record Contact
 {
     public Guid Id { get; init; } = Guid.NewGuid();
@@ -19,6 +24,8 @@ public sealed record Contact
 }
 public sealed record DocumentLine(Guid ProductId, string Name, string Code, string Unit, decimal Quantity, decimal Price, decimal Cost)
 {
+    public string LotCode { get; init; } = "";
+    public DateOnly? Expiry { get; init; }
     public decimal Total => decimal.Round(Quantity * Price, 2, MidpointRounding.AwayFromZero);
 }
 public sealed record Sale
@@ -96,4 +103,10 @@ public sealed class OperationsState
     public List<CashSession> Sessions { get; set; } = [];
     public List<CashEntry> Cash { get; set; } = [];
     public List<SaleReturn> Returns { get; set; } = [];
+}
+
+public sealed record LotReceipt(string Code,DateOnly? Expiry);
+public sealed record LotBalance(Guid ProductId,string Code,DateOnly? Expiry,decimal Quantity)
+{
+    public string Status => Expiry is null ? "Sin vencimiento" : Expiry < DateOnly.FromDateTime(DateTime.Today) ? "Vencido" : Expiry <= DateOnly.FromDateTime(DateTime.Today.AddDays(30)) ? "Vence pronto" : "Vigente";
 }

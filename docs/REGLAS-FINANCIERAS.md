@@ -29,3 +29,10 @@ Estas decisiones están aisladas en Application/Returns.cs y OperationsService.c
 ## Extensión de red 0.7
 
 Véase [RED.md](RED.md) para el gateway, servicio HTTPS, identidad de caja, idempotencia transaccional, migración v5, reversión en la caja operadora y restauración central. Las deudas y descuentos siguen en USD; el servidor calcula costos, tasas y saldos. Cajas independientes predeterminadas; cambio de modalidad solo con todas las cajas cerradas.
+
+## Lotes y vencimientos
+Cada lote se identifica por producto y código (sin distinguir mayúsculas); su fecha no se modifica una vez registrado. La fecha es opcional para productos sin vencimiento. El inventario anterior continúa identificado como «Sin lote» y puede clasificarse sin alterar el saldo total. Las entradas permiten declarar lotes vencidos para reflejar existencias físicas; nunca se venden unidades con fecha anterior al día actual del equipo principal. La fecha indicada es válida hasta finalizar ese día.
+
+Las ventas consumen primero el lote vigente con vencimiento más próximo (FEFO); después los lotes sin fecha y existencias sin clasificar. Se conservan asignaciones para reintegrar exactamente los lotes originales en anulaciones y devoluciones parciales. Las salidas de ajuste permiten retirar mercancía vencida. La anulación de compra exige saldo suficiente en los lotes recibidos, sin sustituirlos por otros lotes.
+
+Desactivar el módulo oculta sus herramientas; conserva trazabilidad y bloqueo de vencidos. No se permite desactivar inventario mientras quede saldo en lotes identificados. Las fechas y asignaciones se resuelven en el servidor cuando hay red. El costo continúa siendo el último costo de compra por producto; el lote no introduce valorización contable distinta. Una compra puede recibir el mismo producto en varios lotes; el último costo de sus líneas actualiza el catálogo.

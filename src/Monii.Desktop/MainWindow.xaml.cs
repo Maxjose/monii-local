@@ -115,6 +115,7 @@ public partial class MainWindow : Window
             currentPage = page;
             BuildNavigation();
             PageTitle.Text = page;
+            PageHeader.Margin=new Thickness(0,0,0,page=="Inicio"?8:24);
             Status.Text = "F2: productos · F4: ventas · USD es la moneda base";
             PageContent.Content = page switch
             {
@@ -137,8 +138,8 @@ public partial class MainWindow : Window
             panel.Children.Add(Text("Hay una operación pendiente de confirmar. Accede con el usuario que la realizó y recupera su respuesta antes de registrar otra.",15,"#B91C1C"));
             panel.Children.Add(Button("Reconciliar operación pendiente",()=>Safe(ResolvePendingOperation)));
         }
-        panel.Children.Add(Text("Tu negocio, en orden.", 18));
-        panel.Children.Add(Text("Consulta existencias, registra ventas y revisa tu caja.", 14, "#64748B"));
+        var introduction=Text("Consulta existencias, registra ventas y revisa tu caja.",14,"#64748B");
+        introduction.Margin=new Thickness(0,0,0,8);panel.Children.Add(introduction);
         var cards = new UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 24) };
         var products = service.Products(includeInactive: true);
         cards.Children.Add(Card("PRODUCTOS ACTIVOS", products.Count(p => p.Active).ToString(), storage is RemoteStore ? "Catálogo del equipo principal" : "Catálogo guardado en este equipo"));
@@ -149,7 +150,6 @@ public partial class MainWindow : Window
         if(storage.Can(Permission.Products)) actions.Children.Add(Button("Registrar un producto", () => EditProduct(null, () => Navigate("Productos"))));
         if(storage.Can(Permission.Settings)) actions.Children.Add(Button("Configurar negocio", () => Navigate("Configuración")));
         actions.Children.Add(Button("Registrar venta", () => Navigate("Ventas")));
-        actions.Children.Add(Button("Explorar venta demo", () => Navigate("Venta demo")));
         panel.Children.Add(actions);
         if(storage.Can(Permission.Reports)) panel.Children.Add(Text("Actividad reciente", 20));
         var audit = storage.Can(Permission.Reports) ? service.Audit.Take(6).ToList() : [];
@@ -273,7 +273,7 @@ public partial class MainWindow : Window
         var credit = Check(panel, "Créditos (requiere clientes)", settings.Credit);
         var cash = Check(panel, "Caja", settings.Cash);
         var reports = Check(panel, "Reportes", settings.Reports);
-        var lots = Check(panel, "Lotes y vencimientos — preferencia para futura fase", settings.Lots);
+        var lots = Check(panel, "Lotes y vencimientos", settings.Lots);
         var compatibility = Check(panel, "Campos de compatibilidad con vehículos", settings.VehicleCompatibility);
         var tickets = Check(panel, "Impresión de tickets — preferencia para futura fase", settings.Tickets);
         customers.Unchecked += (_, _) => credit.IsChecked = false;

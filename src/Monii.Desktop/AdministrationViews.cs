@@ -36,7 +36,7 @@ public partial class MainWindow
         void Edit(UserAccount? account)
         {
             var panel=new StackPanel(); var username=Field(panel,"Usuario",account?.Username??""); var name=Field(panel,"Nombre",account?.Name??""); var role=Choice(panel,"Rol",Enum.GetNames<UserRole>(),(account?.Role??UserRole.Cajero).ToString()); var active=Check(panel,"Cuenta activa",account?.Active??true);
-            panel.Children.Add(Text(account is null?"Contraseña (mínimo 12 caracteres)":"Nueva contraseña (vacío conserva la actual)")); var password=new PasswordBox { Padding=new Thickness(10),Margin=new Thickness(0,8,0,8) }; panel.Children.Add(password);
+            panel.Children.Add(Text(account is null?"Contraseña (mínimo 8 caracteres)":"Nueva contraseña (vacío conserva la actual)")); var password=new PasswordBox { Padding=new Thickness(10),Margin=new Thickness(0,8,0,8) }; panel.Children.Add(password);
             Form("Cuenta de usuario",panel,()=> { storage.SaveUser(account?.Id,username.Text,name.Text,Enum.Parse<UserRole>(role.SelectedItem!.ToString()!),active.IsChecked==true,password.Password.Length==0?null:password.Password); password.Clear(); Reload(); BuildNavigation(); });
         }
         var actions=new WrapPanel(); actions.Children.Add(Button("Nuevo usuario",()=>Edit(null))); actions.Children.Add(Button("Editar usuario",()=> { if(grid.SelectedItem is UserAccount a) Edit(a); else Status.Text="Selecciona una cuenta."; })); header.Children.Add(actions); Reload(); return Page(header,grid);

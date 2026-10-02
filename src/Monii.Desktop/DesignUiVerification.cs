@@ -95,6 +95,30 @@ public partial class MainWindow
                 Assert(submenu.Items.Cast<TabItem>().All(tab=> { var position=tab.TranslatePoint(new Point(),submenu); return position.X>=0&&position.X+tab.ActualWidth<=submenu.ActualWidth&&tab.ActualHeight>=36; }),"Submenús completos con márgenes en "+page);
             Capture((FrameworkElement)Content,"submenu-"+page+".png");
         }
+        service.SaveSettings(previous with { Lots=true });
+        var lotProduct=service.Products().Single(p=>p.Code=="7891234567890");operations.Adjust(lotProduct.Id,5,"Existencias UI sin lote");
+        Navigate("Inventario");UpdateLayout();
+        Descendants(PageContent).OfType<DataGrid>().Single().SelectedItem=Descendants(PageContent).OfType<DataGrid>().Single().Items.Cast<StockRow>().Single(r=>r.Id==lotProduct.Id);
+        Modal(()=>Click(PageContent,"Clasificar existencias sin lote"),"Guardar",window=> {
+            var fields=Descendants(window).OfType<TextBox>().ToList();fields[0].Text="2";fields[1].Text="LOTE-UI";fields.Last().Text="Clasificación UI";
+            Descendants(window).OfType<DatePicker>().Single().SelectedDate=DateTime.Today.AddDays(7);
+        });
+        Assert(OperationsService.Lots(operations.State,lotProduct.Id).Single(l=>l.Code=="LOTE-UI").Quantity==2,"Formulario clasifica existencias y guarda vencimiento");
+        Modal(()=>Click(PageContent,"Lotes y vencimientos"),"Cerrar",window=> {
+            Assert(Descendants(window).OfType<DataGrid>().Single().Items.Count>0,"Listado muestra lotes con saldo y estado");Capture(window,"lotes-vencimientos.png");
+        });
+        var lotSupplier=new Contact { Name="Proveedor UI lotes" };operations.SaveContact(lotSupplier,true);operations.OpenCash(100,0,0);
+        Navigate("Compras");UpdateLayout();
+        Modal(()=>Click(PageContent,"Nueva compra"),"Registrar compra",window=> {
+            var selectors=Descendants(window).OfType<ComboBox>().ToList();selectors[0].SelectedItem=selectors[0].Items.Cast<Contact>().Single(c=>c.Id==lotSupplier.Id);selectors[1].SelectedItem=selectors[1].Items.Cast<Product>().Single(p=>p.Id==lotProduct.Id);
+            var fields=Descendants(window).OfType<TextBox>().ToList();fields[0].Text="Compra UI lotes";fields[1].Text="2";fields[2].Text="2";fields[3].Text="COMPRA-UI-1";
+            Descendants(window).OfType<DatePicker>().Single().SelectedDate=DateTime.Today.AddDays(15);Click(window,"Agregar línea");
+            fields[1].Text="1";fields[3].Text="COMPRA-UI-2";Click(window,"Agregar línea");Capture(window,"compra-con-lotes.png");
+        });
+        Assert(operations.State.Purchases.Single(p=>p.Reference=="Compra UI lotes").Lines.Select(l=>l.LotCode).Distinct().Count()==2,"Compra WPF recibe un producto en dos lotes");
+        var lotCash=operations.CurrentCash!;operations.CloseCash(OperationsService.Expected(operations.State,lotCash,"USD"),0,0);
+        Navigate("Inicio");UpdateLayout();
+        Assert(!Descendants(PageContent).OfType<Button>().Any(b=>b.Content?.ToString()=="Explorar venta demo")&&!Descendants(PageContent).OfType<TextBlock>().Any(t=>t.Text=="Tu negocio, en orden."),"Inicio compacto sin título redundante ni botón demo");
         service.SaveSettings(previous); Theme.Apply(previous);
         Assert(Descendants(Navigation).OfType<Button>().Any(b=>b.Content?.ToString()=="Cerrar sesión")&&!Descendants(Navigation).OfType<Button>().Any(b=>b.Content?.ToString()=="Cambiar usuario"),"Menú muestra Cerrar sesión");
         var signedUser=storage.CurrentUser; var cartCount=saleCart.Count;

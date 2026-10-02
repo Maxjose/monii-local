@@ -62,3 +62,8 @@ UpdateChecker consulta solo metadatos HTTPS y valida UpdateCatalog RSA con clave
 ## Extensión de red 0.7
 
 Véase [RED.md](RED.md) para el gateway, servicio HTTPS, identidad de caja, idempotencia transaccional, migración v5, reversión en la caja operadora y restauración central. Las deudas y descuentos siguen en USD; el servidor calcula costos, tasas y saldos. Cajas independientes predeterminadas; cambio de modalidad solo con todas las cajas cerradas.
+
+## Lotes: esquema 6
+StockMove incorpora LotCode, Expiry y SourceMoveId. El saldo de lote es la suma de sus movimientos por producto/código/fecha; no hay un segundo saldo mutable. DocumentLine conserva lote/fecha en recepción. Las ventas agregan cantidades por producto y guardan asignaciones en sus movimientos, con FEFO calculado dentro de la transacción. SourceMoveId vincula reintegros al consumo original y evita devolver dos veces las mismas unidades.
+
+La migración agrega índice de lotes, crea copia before-v6 y reconstruye la vinculación de devoluciones antiguas. Persiste los snapshots sin borrar documentos. ValidateLots controla saldos, códigos, fechas e integridad del reintegro en transacciones y respaldos. Las reglas quedan en Application/Lots.cs; SQLite solo persiste, migra y valida. La API admite ClassifyLot y parámetros de lote en Adjust/Buy, conserva autorización e idempotencia del gateway. Un cliente anterior omite los parámetros opcionales y conserva su funcionamiento básico; para administrar lotes deben actualizarse cliente y servidor.

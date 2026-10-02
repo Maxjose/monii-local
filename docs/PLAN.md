@@ -59,3 +59,6 @@ Implementados gateway local/remoto, servidor ASP.NET Core para servicio Windows,
 
 ### Ajustes posteriores al servidor central
 Completados: desinstalación protegida con recuperación a modo local, preservación de datos previos y cierre de sesión con ventana principal oculta. Verificados recuperación y acceso en bases aisladas. Pendiente: piloto de desinstalación real bajo UAC en Windows.
+
+### Lotes y vencimientos
+Completados recepción, clasificación, ajustes, alertas, listado, asignación FEFO, bloqueo de vencidos y reintegros originales; migración v6, respaldos y pruebas de interfaz/local/red. Reglas y decisiones documentadas en LOTES.md y REGLAS-FINANCIERAS.md. Inicio compacto y mínimo de contraseña de 8 caracteres completados.
