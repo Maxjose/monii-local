@@ -34,6 +34,14 @@ public partial class MainWindow
         Assert(controls.Children.Count==8,"Servidor reúne ocho acciones en tres columnas");
         Assert(controls.Children.OfType<Button>().All(b=>b.ActualWidth>0&&b.Content is TextBlock { TextWrapping: TextWrapping.Wrap }),"Botones de servidor tienen margen y texto adaptable");
         Capture("conexion-red.png");
+        tabs.SelectedItem=tabs.Items.Cast<TabItem>().Single(t=>t.Header?.ToString()=="Usuarios");UpdateLayout();
+        var users=Descendants(PageContent).OfType<DataGrid>().Single();users.SelectedItem=users.Items.Cast<UserAccount>().Single(u=>u.Id==storage.CurrentUser!.Id);
+        Modal("Editar usuario","Guardar",dialog=>Descendants(dialog).OfType<PasswordBox>().Single().Password="87654321");
+        Assert(storage.Users().Any(u=>u.Id==storage.CurrentUser!.Id),"Cambio de contraseña propia desde formulario cierra sin error y recarga usuarios");
+        users.SelectedItem=users.Items.Cast<UserAccount>().Single(u=>u.Id==storage.CurrentUser!.Id);
+        Modal("Editar usuario","Guardar",dialog=>Descendants(dialog).OfType<PasswordBox>().Single().Password="12345678");
+        Assert(storage.Users().Any(u=>u.Id==storage.CurrentUser!.Id),"Segundo cambio de contraseña conserva acceso y navegación");
+
         foreach(var page in new[]{"Productos","Inventario","Compras","Clientes","Créditos","Reportes"}) { Navigate(page);UpdateLayout();Assert(PageTitle.Text==page,"Navegación remota: "+page); }
         Navigate("Caja");UpdateLayout();Modal("Abrir caja","Guardar",window=>Descendants(window).OfType<TextBox>().First().Text="10");
         Assert(operations.CurrentCash is not null,"Apertura desde formulario WPF se guarda en servidor");

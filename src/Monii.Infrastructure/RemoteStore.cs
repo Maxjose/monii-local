@@ -118,7 +118,21 @@ public sealed class RemoteStore : IMoniiStore, IDisposable
     public IReadOnlyDictionary<Guid,decimal> StockBalances()=>Read<Dictionary<Guid,decimal>>("Stock");
     public IReadOnlyList<Sale> SalesPage(int page,string search="",int size=50)=>Read<List<Sale>>("Sales",new { page,search,size });
     public IReadOnlyList<UserAccount> Users()=>Read<List<UserAccount>>("Users");
-    public void SaveUser(Guid? id,string username,string name,UserRole role,bool active,string? password)=>Write<bool>("User",new { id,username,name,role,active,password });
+    public void SaveUser(Guid? id,string username,string name,UserRole role,bool active,string? password)
+    {
+        var ownAccount=id is not null&&id==CurrentUser?.Id;
+        Write<bool>("User",new { id,username,name,role,active,password });
+        // Older servers invalidate even the requesting session when credentials change.
+        // Authenticate with the confirmed new password before the UI reloads any data.
+        if(ownAccount&&active&&password is not null)
+        {
+            try { Authenticate(username,password); }
+            catch(Exception error) when(error is IOException or UnauthorizedAccessException or ArgumentException)
+            { throw new ArgumentException("La contraseña se guardó, pero no se pudo renovar el acceso. Vuelve a iniciar sesión con la nueva contraseña.",error); }
+        }
+        else if(ownAccount&&active&&CurrentUser is { } user)
+            CurrentUser=user with { Username=username.Trim(),Name=name.Trim(),Role=role };
+    }
     public int ImportProducts(ProductImportPreview preview)=>Write<int>("Import",new { preview });
     public void AutomaticBackup()=>Write<bool>("AutoBackup",new{});
     public void ApplyOfficialRates(ExchangeQuote? bcv,ExchangeQuote? cop)=>throw new ArgumentException("Las tasas se consultan en el equipo principal.");

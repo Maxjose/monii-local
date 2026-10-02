@@ -10,7 +10,7 @@ using System.Security.Cryptography;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 
-try { await Verify(); } catch(Exception error) { Console.Error.WriteLine(error);Environment.ExitCode=1; }
+try { if(args.Length==2&&args[0]=="--legacy-runtime")await LegacyPasswordChecks.Run(args[1]);else await Verify(); } catch(Exception error) { Console.Error.WriteLine(error);Environment.ExitCode=1; }
 static async Task Verify()
 {
     var directory=Path.GetFullPath(Path.Combine("artifacts","network-verification-"+Guid.NewGuid().ToString("N")));Directory.CreateDirectory(directory);
@@ -157,6 +157,8 @@ static async Task Verify()
             using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(60));await ui.WaitForExitAsync(timeout.Token);
             Check(ui.ExitCode==0,"Interfaz WPF conectada completa apertura, venta y cierre"+(ui.ExitCode==0?"":File.ReadAllText(Path.Combine(uiOutput,"ui-error.txt"))));
         }
+        a.Authenticate("admin","12345678");
+        var uiAccount=a.Users().Single(u=>u.Username=="admin");a.SaveUser(uiAccount.Id,uiAccount.Username,uiAccount.Name,uiAccount.Role,true,pass);
         Check(a.StockBalances()[uiProduct.Id]==4&&oa.CurrentCash is null,"Otra conexión observa inventario y cierre producidos en WPF");
         await app.StopAsync();await app.DisposeAsync();
         Reject(()=>oa.OpenCash(20,0,0),"Conexión interrumpida devuelve error controlado");

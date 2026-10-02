@@ -80,3 +80,11 @@ Implementados actualización manual del servicio instalado con respaldo/copia pr
 ## Corrección de sesión al cambiar contraseña — 2 de octubre de 2026
 
 El cambio se guardaba, pero la siguiente recarga fallaba porque el sello de sesión incluía la contraseña anterior. El servidor renueva exclusivamente la sesión que realiza una edición propia si la cuenta continúa activa y conserva su rol. Las demás sesiones de la cuenta se revocan; una desactivación o cambio de rol no renueva la sesión. Se verifica cambio propio, recarga de usuarios, rechazo de contraseña anterior y acceso con la nueva. Requiere actualizar el servidor instalado desde el portable corregido, con todas las cajas cerradas.
+
+
+## Seguimiento: contraseña guardada y error de recarga — 2 de octubre de 2026
+
+- Los hashes del servidor instalado y del portable mostraron binarios distintos. Se reprodujo el error exacto usando ese ejecutable anterior con una base y certificado aislados, sin tocar el servicio ni los datos reales.
+- RemoteStore renueva el acceso con la contraseña nueva tras confirmar un cambio propio, antes de que el formulario recargue usuarios. Compatible con el servidor anterior y el corregido. Si falla la renovación por conexión, informa que el cambio ya se guardó y que se debe iniciar sesión con la nueva contraseña.
+- Cinco verificaciones contra el runtime anterior; se añadió regresión WPF que cambia dos veces la contraseña propia desde Editar usuario y comprueba cierre y recarga del formulario. Se mantienen las pruebas de revocación de otras sesiones.
+- El mantenimiento valida hashes de los cinco archivos principales copiados antes de arrancar el servidor. No se actualizó el servicio instalado desde las pruebas.

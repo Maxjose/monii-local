@@ -29,6 +29,11 @@ try {
     Copy-Item -LiteralPath $runtime -Destination $backup -Recurse -Force
     $changed=$true
     Copy-Item -Path (Join-Path $bundle '*') -Destination $runtime -Recurse -Force
+    foreach($file in @('Monii.Server.exe','Monii.Server.dll','Monii.Infrastructure.dll','Monii.Domain.dll','Monii.Application.dll')) {
+        $expected=(Get-FileHash -LiteralPath (Join-Path $bundle $file) -Algorithm SHA256).Hash
+        $installed=(Get-FileHash -LiteralPath (Join-Path $runtime $file) -Algorithm SHA256).Hash
+        if($expected -ne $installed){throw "No se confirmó la copia del archivo $file. Se recuperará la versión anterior."}
+    }
     & (Join-Path $runtime "Monii.Server.exe") --prepare --data-dir $data
     if($LASTEXITCODE -ne 0){throw "No se pudo preparar el servidor actualizado."}
     if(-not (Get-NetFirewallRule -DisplayName "Monii Server - Descubrimiento local" -ErrorAction SilentlyContinue)){New-NetFirewallRule -DisplayName "Monii Server - Descubrimiento local" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 58444 -Profile Private -RemoteAddress LocalSubnet -Program (Join-Path $runtime "Monii.Server.exe") | Out-Null}
