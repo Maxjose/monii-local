@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -41,7 +41,8 @@ public partial class MainWindow
         Navigate("Caja"); UpdateLayout();
         Modal("Abrir caja", "Guardar", dialog => { var fields = Descendants(dialog).OfType<TextBox>().ToList(); fields[0].Text = "100"; });
         Assert(OperationsService.OpenSession(operations.State) is not null, "Apertura desde interfaz de caja");
-        Navigate("Ventas"); UpdateLayout(); Click("Agregar al carrito");
+        VerifySalesCatalogUi(Assert,Capture);
+        Navigate("Ventas"); UpdateLayout(); Descendants(PageContent).OfType<TextBox>().Single(t=>t.Name=="SaleSearch").Text=product.Code;Click("Agregar al carrito");
         Modal("Cobrar / registrar crédito", "Confirmar venta", _ => { });
         Assert(operations.State.Sales.Count == 1 && OperationsService.Stock(operations.State, product.Id) == 19, "Cobro real guarda venta y descuenta inventario"); Capture("ventas-reales.png");
         Navigate("Caja"); Capture("caja-real.png");
@@ -61,7 +62,7 @@ public partial class MainWindow
         Navigate("Clientes"); UpdateLayout();
         Modal("Nuevo cliente", "Guardar", dialog => { var fields = Descendants(dialog).OfType<TextBox>().ToList(); fields[0].Text = "Cliente UI"; fields[3].Text = "100"; });
         Assert(operations.State.Customers.Count == 1, "Cliente guardado desde formulario");
-        Navigate("Ventas"); UpdateLayout(); Click("Agregar al carrito");
+        Navigate("Ventas"); UpdateLayout(); Descendants(PageContent).OfType<TextBox>().Single(t=>t.Name=="SaleSearch").Text=product.Code;Click("Agregar al carrito");
         Modal("Cobrar / registrar crédito", "Confirmar venta", dialog =>
         {
             var fields = Descendants(dialog).OfType<TextBox>().ToList(); fields[1].Text = "5";

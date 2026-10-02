@@ -45,7 +45,7 @@ public partial class MainWindow
         foreach(var page in new[]{"Productos","Inventario","Compras","Clientes","Créditos","Reportes"}) { Navigate(page);UpdateLayout();Assert(PageTitle.Text==page,"Navegación remota: "+page); }
         Navigate("Caja");UpdateLayout();Modal("Abrir caja","Guardar",window=>Descendants(window).OfType<TextBox>().First().Text="10");
         Assert(operations.CurrentCash is not null,"Apertura desde formulario WPF se guarda en servidor");
-        Navigate("Ventas");UpdateLayout();var selector=Descendants(PageContent).OfType<ComboBox>().Single(c=>c.DisplayMemberPath=="Name");selector.SelectedItem=selector.Items.Cast<Product>().Single(p=>p.Code=="UI-RED");Click("Agregar al carrito");
+        Navigate("Ventas");UpdateLayout();Descendants(PageContent).OfType<TextBox>().Single(t=>t.Name=="SaleSearch").Text="UI-RED";Click("Agregar al carrito");
         Modal("Cobrar / registrar crédito","Confirmar venta",_=>{});
         Assert(operations.State.Sales.Any(s=>s.Lines.Any(l=>l.Code=="UI-RED"))&&saleCart.Count==0,"Cobro WPF remoto confirma venta y limpia carrito");Capture("venta-red.png");
         Navigate("Caja");UpdateLayout();Assert(OperationsService.Expected(operations.State,operations.CurrentCash!,"USD")==14,"Efectivo remoto concilia venta de interfaz");

@@ -142,3 +142,11 @@ El cambio se guardaba, pero la siguiente recarga fallaba porque el sello de sesi
 - RemoteStore renueva el acceso con la contraseña nueva tras confirmar un cambio propio, antes de que el formulario recargue usuarios. Compatible con el servidor anterior y el corregido. Si falla la renovación por conexión, informa que el cambio ya se guardó y que se debe iniciar sesión con la nueva contraseña.
 - Cinco verificaciones contra el runtime anterior; se añadió regresión WPF que cambia dos veces la contraseña propia desde Editar usuario y comprueba cierre y recarga del formulario. Se mantienen las pruebas de revocación de otras sesiones.
 - El mantenimiento valida hashes de los cinco archivos principales copiados antes de arrancar el servidor. No se actualizó el servicio instalado desde las pruebas.
+
+
+## Ventas: selección de productos y cantidades — 2 de octubre de 2026
+
+- Se quitaron el desplegable y la cantidad exterior al carrito. Junto al buscador, un icono de listado abre una ventana con catálogo activo y filtro instantáneo por nombre, código, categoría, marca y referencia. Ctrl/Mayús permite elegir varios; Agregar seleccionados añade una unidad de cada producto sin cerrar la ventana; doble clic o Enter también agregan. Cerrar conserva el carrito.
+- El buscador principal agrega con Enter o Agregar al carrito si hay un código exacto o una coincidencia única. Con varias coincidencias abre el catálogo filtrado; no elige arbitrariamente el primero.
+- Cada fila dispone de menos, cantidad editable y más. Enter o salir del campo confirma. Unidad/caja admite enteros; otras unidades hasta tres decimales. Menos retira la fila al llegar a cero. Los cambios actualizan línea y subtotal; al cobrar se mantienen las validaciones centrales de inventario, lotes, permisos y caja. No modifica la base hasta confirmar la venta.
+- Verificación WPF: filtro, exclusión de inactivos, selección múltiple, ventana abierta tras agregar, acumulación en una línea, más/menos, entrada escrita y decimal, rechazo de fracción en unidades, subtotal y eliminación. Flujo de venta/cobro local y conectado incluido.

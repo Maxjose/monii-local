@@ -75,12 +75,25 @@ public partial class MainWindow
         header.Children.Add(Text("Venta real · Se guarda al confirmar el cobro", 15, "#0F766E"));
         var currentRates=service.Settings;
         header.Children.Add(Text($"Tasas: BCV {currentRates.BcvSource} ({currentRates.BcvEffectiveDate?.ToString()??"sin fecha oficial"}) · COP {currentRates.CopSource} ({currentRates.CopEffectiveDate?.ToString()??"sin fecha oficial"}). Los cobros guardan la tasa vigente al confirmar.",12,"#64748B"));
-        var search = Field(header, "Buscar producto / leer código de barras", "");
-        var selector = new ComboBox { DisplayMemberPath = "Name" }; header.Children.Add(selector);
-        void Options() { selector.ItemsSource = service.Products(search.Text); selector.SelectedIndex = 0; }
-        search.TextChanged += (_, _) => Options(); Options();
-        var quantity = Field(header, "Cantidad", "1");
-        var total = Text("", 24); var conversions = Text("", 13, "#64748B"); var grid = Table(("Producto", "Name", 3), ("Cantidad", "Quantity", 1), ("Precio USD", "Price", 1), ("Total USD", "Total", 1)); grid.ItemsSource = saleCart;
+        var products=service.Products().ToList();var total=Text("",24);var conversions=Text("",13,"#64748B");
+        header.Children.Add(Text("Buscar producto / leer código de barras"));
+        var searchRow=new DockPanel();var search=new TextBox { Name="SaleSearch",Margin=new Thickness(0,8,8,8) };
+        var browse=Button("",()=>OpenSaleCatalog(search.Text,AddProduct));browse.ToolTip="Abrir listado de productos";
+        System.Windows.Automation.AutomationProperties.SetName(browse,"Abrir listado de productos");
+        browse.Name="BrowseSaleProducts";browse.Content=new TextBlock { Text="\uE8FD",FontFamily=new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),FontSize=20 };browse.Width=48;browse.Margin=new Thickness(0,8,0,8);
+        DockPanel.SetDock(browse,Dock.Right);searchRow.Children.Add(browse);searchRow.Children.Add(search);header.Children.Add(searchRow);
+        var grid = Table(("Producto", "Name", 3), ("Precio USD", "Price", 1), ("Total USD", "Total", 1)); grid.ItemsSource = saleCart;
+        var quantityFactory=new FrameworkElementFactory(typeof(SaleQuantityCell));
+        quantityFactory.SetValue(SaleQuantityCell.ChangeProperty,new Action<CartLine,decimal>((row,value)=> {
+            try {
+                var product=products.Single(p=>p.Id==row.ProductId);OperationsService.Quantity(product,value);
+                var current=saleCart.First(l=>l.ProductId==row.ProductId);
+                if(current.Quantity!=value)saleCart[saleCart.IndexOf(current)]=current with { Quantity=value };
+                Total();Status.Text="Cantidad actualizada.";
+            } catch(ArgumentException error) { Status.Text=error.Message; }
+        }));
+        quantityFactory.SetValue(SaleQuantityCell.RemoveProperty,new Action<CartLine>(row=> { var current=saleCart.FirstOrDefault(l=>l.ProductId==row.ProductId);if(current is not null)saleCart.Remove(current);Total(); }));
+        grid.Columns.Insert(1,new DataGridTemplateColumn { Header="Cantidad",Width=180,CellTemplate=new DataTemplate { VisualTree=quantityFactory } });
         void Total()
         {
             var usd = saleCart.Sum(l => l.Total); var settings = service.Settings; var values = new List<string>();
@@ -90,14 +103,22 @@ public partial class MainWindow
             if (settings.ShowCop) values.Add($"COP {BusinessService.ConvertPrice(usd, settings.CopRate):N2}");
             conversions.Text = string.Join(" · ", values);
         }
+        void AddProduct(Product product)
+        {
+            if(products.All(p=>p.Id!=product.Id))products.Add(product);
+            var old=saleCart.FirstOrDefault(l=>l.ProductId==product.Id);var quantity=(old?.Quantity??0)+1;
+            OperationsService.Quantity(product,quantity);
+            if(old is null)saleCart.Add(new(product.Id,product.Name,quantity,product.PriceUsd));
+            else saleCart[saleCart.IndexOf(old)]=old with { Quantity=quantity };
+            Total();
+        }
         void Add()
         {
-            if (selector.SelectedItem is not Product p) throw new ArgumentException("Selecciona un producto activo.");
-            var qty = ParseNumber(quantity.Text, "cantidad"); OperationsService.Quantity(p, qty);
-            var old = saleCart.FirstOrDefault(l => l.ProductId == p.Id);
-            if (old is null) saleCart.Add(new(p.Id, p.Name, qty, p.PriceUsd));
-            else { var sum = old.Quantity + qty; OperationsService.Quantity(p, sum); saleCart[saleCart.IndexOf(old)] = old with { Quantity = sum }; }
-            search.Text = ""; quantity.Text = "1"; Total(); search.Focus();
+            var query=search.Text.Trim();if(query.Length==0) { OpenSaleCatalog("",AddProduct);return; }
+            var exact=products.Where(p=>p.Code.Equals(query,StringComparison.OrdinalIgnoreCase)).ToList();
+            var found=exact.Count>0?exact:products.Where(p=>string.Join(" ",p.Code,p.Name,p.Category,p.Brand,p.Reference).Contains(query,StringComparison.OrdinalIgnoreCase)).ToList();
+            if(found.Count==1) { AddProduct(found[0]);search.Clear();search.Focus(); }
+            else OpenSaleCatalog(query,AddProduct);
         }
         search.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter) { Safe(Add); e.Handled = true; } };
         var actions = new WrapPanel(); actions.Children.Add(Button("Agregar al carrito", () => Safe(Add)));
