@@ -91,3 +91,6 @@ Cajas independientes por defecto o caja compartida; IP reservada del principal; 
 
 ### Indicador de inicio de sesión
 El botón Ingresar muestra un icono animado y «Iniciando sesión…» durante autenticación, sin bloquear la interfaz. Impide solicitudes repetidas y cambios de conexión durante la espera. Ante error vuelve a habilitar el formulario para reintentar. Compilación correcta y 91 comprobaciones WPF aprobadas, incluida carga y nuevo acceso. Portable actualizado.
+
+### Ajuste visual del acceso
+Indicador sustituido por aro vectorial animado, centrado y sin texto. Conserva la altura y anchura del botón. Verificado visualmente y mediante 91 comprobaciones WPF; portable actualizado.

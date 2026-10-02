@@ -30,14 +30,16 @@ public sealed class LoginWindow : Window
         {
             if(busy)return;
             var loginName=username.Text;var displayName=name?.Text;var secret=password.Password;
+            submit.Height=submit.ActualHeight;
             busy=true;error.Text="";
             username.IsEnabled=false;password.IsEnabled=false;if(name is not null)name.IsEnabled=false;
             foreach(var button in panel.Children.OfType<Button>())button.IsEnabled=false;
             var rotation=new RotateTransform();
-            var spinner=new TextBlock { Text="◌",FontSize=22,VerticalAlignment=VerticalAlignment.Center,RenderTransformOrigin=new Point(.5,.5),RenderTransform=rotation,Margin=new Thickness(0,0,10,0) };
-            var loading=new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Center };
-            loading.Children.Add(spinner);loading.Children.Add(new TextBlock { Text="Iniciando sesión…",VerticalAlignment=VerticalAlignment.Center });
-            submit.Content=loading;
+            var spinner=new Grid { Width=20,Height=20,HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center,RenderTransformOrigin=new Point(.5,.5),RenderTransform=rotation };
+            spinner.Children.Add(new System.Windows.Shapes.Ellipse { Stroke=Brushes.White,StrokeThickness=2.5,Opacity=.25,Margin=new Thickness(1.5) });
+            spinner.Children.Add(new System.Windows.Shapes.Path { Data=Geometry.Parse("M 10,1.5 A 8.5,8.5 0 1 1 1.5,10"),Stroke=Brushes.White,StrokeThickness=2.5,StrokeStartLineCap=PenLineCap.Round,StrokeEndLineCap=PenLineCap.Round });
+            submit.HorizontalContentAlignment=HorizontalAlignment.Center;submit.VerticalContentAlignment=VerticalAlignment.Center;
+            submit.Content=spinner;
             System.Windows.Automation.AutomationProperties.SetName(submit,"Iniciando sesión, espera");
             rotation.BeginAnimation(RotateTransform.AngleProperty,new DoubleAnimation(0,360,TimeSpan.FromSeconds(1)) { RepeatBehavior=RepeatBehavior.Forever });
             var succeeded=false;
