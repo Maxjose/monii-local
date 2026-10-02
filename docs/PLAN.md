@@ -68,3 +68,10 @@ Completados perfil Básico, navegación reducida, inicio sencillo, formulario de
 
 ### Mantenimiento y detección local del servidor
 Implementados actualización manual del servicio instalado con respaldo/copia previa, mensaje específico para Básico no reconocido por runtime anterior, búsqueda UDP IPv4 y confirmación inicial mediante código corto. Verificados servidor UDP local, login HTTPS y formulario de guardado. Piloto físico/firewall/UAC pendientes. Guía en RED.md.
+
+
+## Ajustes de servidor — 2 de octubre de 2026
+
+- Conexión y Servidor se presentan como subsecciones. Controles del servidor en tres columnas, con margen y texto adaptable.
+- Configurar firewall solicita elevación Windows y repara únicamente las dos reglas de Monii: TCP de servicio y UDP de descubrimiento, con los puertos configurados, para red privada y subred local. No cambia la categoría de red ni desactiva el firewall. No ejecutado contra el firewall real durante las pruebas.
+- Contraseñas: mínimo 8 caracteres, probado localmente y mediante creación y autenticación por HTTPS. Si otra copia muestra 12, usar el portable actualizado completo en ese equipo. El servidor instalado inspeccionado coincide con la biblioteca actual de seguridad.

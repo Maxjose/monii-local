@@ -30,7 +30,10 @@ public partial class MainWindow
         Width=960;Navigate("Configuración");UpdateLayout();var tabs=Descendants(PageContent).OfType<TabControl>().Single();
         tabs.SelectedItem=tabs.Items.Cast<TabItem>().Single(t=>t.Header?.ToString()=="Conexión");UpdateLayout();
         Assert(Descendants(PageContent).OfType<Button>().Any(b=>b.Content?.ToString()=="Comprobar conexión"),"Configuración presenta estado y comprobación de servidor");
-        Assert(tabs.Items.Cast<TabItem>().All(t=>t.TranslatePoint(new Point(),tabs).X+t.ActualWidth<=tabs.ActualWidth),"Botones de conexión y configuración completos a 960 píxeles");Capture("conexion-red.png");
+        Assert(tabs.Items.Cast<TabItem>().All(t=>t.TranslatePoint(new Point(),tabs).X+t.ActualWidth<=tabs.ActualWidth),"Botones de conexión y configuración completos a 960 píxeles");var controls=Descendants(PageContent).OfType<System.Windows.Controls.Primitives.UniformGrid>().Single(g=>g.Columns==3);
+        Assert(controls.Children.Count==8,"Servidor reúne ocho acciones en tres columnas");
+        Assert(controls.Children.OfType<Button>().All(b=>b.ActualWidth>0&&b.Content is TextBlock { TextWrapping: TextWrapping.Wrap }),"Botones de servidor tienen margen y texto adaptable");
+        Capture("conexion-red.png");
         foreach(var page in new[]{"Productos","Inventario","Compras","Clientes","Créditos","Reportes"}) { Navigate(page);UpdateLayout();Assert(PageTitle.Text==page,"Navegación remota: "+page); }
         Navigate("Caja");UpdateLayout();Modal("Abrir caja","Guardar",window=>Descendants(window).OfType<TextBox>().First().Text="10");
         Assert(operations.CurrentCash is not null,"Apertura desde formulario WPF se guarda en servidor");

@@ -67,6 +67,7 @@ public partial class MainWindow
         var configuration=ConnectionSettings.Load(App.DataDirectory);var panel=new StackPanel { MaxWidth=820 };
         panel.Children.Add(Text("Conexión y servidor",22));
         panel.Children.Add(Text(configuration.Mode switch { "Principal"=>"Este equipo administra el servidor. El servicio sigue activo al cerrar Monii.","Cliente"=>"Caja conectada: los datos y las operaciones se guardan en el principal.",_=>"Modo de una computadora: datos locales." }));
+        panel.Children.Add(Text("Conexión",20));
         panel.Children.Add(Text("Equipo: "+configuration.TerminalName));
         if(configuration.Mode=="Principal")panel.Children.Add(Text("Código de conexión: "+LocalDiscovery.PairingCode(configuration.Fingerprint),20));
         if(storage is RemoteStore remote)
@@ -88,13 +89,21 @@ public partial class MainWindow
         if(configuration.Mode=="Principal")
         {
             panel.Children.Add(Text("Dirección para las cajas: https://"+Environment.MachineName+":58443\nHuella: "+configuration.Fingerprint,13));
-            panel.Children.Add(Button("Iniciar servidor",()=>ControlServer("Start")));
-            panel.Children.Add(Button("Reiniciar servidor",()=>ControlServer("Restart")));
-            panel.Children.Add(Button("Detener servidor",()=>ControlServer("Stop")));
-            panel.Children.Add(Button("Actualizar servidor instalado",()=>Safe(UpdatePrincipal)));
-            panel.Children.Add(Button("Desinstalar servidor",()=>Safe(UninstallPrincipal)));
-            panel.Children.Add(Button("Guardar instrucciones de conexión",()=>ExportText("conexion-monii.txt","Dirección: https://"+Environment.MachineName+":58443\nHuella: "+configuration.Fingerprint+"\nCada caja debe usar un nombre distinto e iniciar sesión con su usuario.")));
-            panel.Children.Add(Button("Ver registros del servidor",()=>Safe(()=>Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"MoniiServer","logs")) { UseShellExecute=true }))));
+            panel.Children.Add(Text("Servidor",20));
+            var actions=new System.Windows.Controls.Primitives.UniformGrid { Columns=3,Margin=new Thickness(0,8,0,12) };
+            void ServerButton(string label,Action action) {
+                var button=Button(label,action);button.Margin=new Thickness(4);button.Padding=new Thickness(10,12,10,12);
+                button.Content=new TextBlock { Text=label,TextWrapping=TextWrapping.Wrap,TextAlignment=TextAlignment.Center };actions.Children.Add(button);
+            }
+            ServerButton("Iniciar servidor",()=>ControlServer("Start"));
+            ServerButton("Reiniciar servidor",()=>ControlServer("Restart"));
+            ServerButton("Detener servidor",()=>ControlServer("Stop"));
+            ServerButton("Actualizar servidor instalado",()=>Safe(UpdatePrincipal));
+            ServerButton("Desinstalar servidor",()=>Safe(UninstallPrincipal));
+            ServerButton("Guardar instrucciones de conexión",()=>ExportText("conexion-monii.txt","Dirección: https://"+Environment.MachineName+":58443\nHuella: "+configuration.Fingerprint+"\nCada caja debe usar un nombre distinto e iniciar sesión con su usuario."));
+            ServerButton("Ver registros del servidor",()=>Safe(()=>Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"MoniiServer","logs")) { UseShellExecute=true })));
+            ServerButton("Configurar firewall",()=>Safe(ConfigureFirewall));
+            panel.Children.Add(actions);
         }
         panel.Children.Add(Button("Cambiar conexión de este equipo",()=>Safe(()=>
         {
@@ -126,6 +135,16 @@ public partial class MainWindow
         var settings=JsonSerializer.Deserialize<ConnectionSettings>(File.ReadAllText(info))!;
         (settings with { TerminalId=ConnectionSettings.Load(App.DataDirectory).TerminalId,TerminalName=Environment.MachineName }).Save(App.DataDirectory);
         MessageBox.Show("Servidor preparado. Abre Monii nuevamente para trabajar conectado y configurar las otras cajas.","Monii");Close();
+    }
+    private void ConfigureFirewall()
+    {
+        if(storage.CurrentUser?.Role!=UserRole.Administrador)throw new UnauthorizedAccessException("Solo el administrador puede configurar el servidor.");
+        var script=Path.Combine(AppContext.BaseDirectory,"server","Configure-Firewall.ps1");
+        if(!File.Exists(script))throw new ArgumentException("Usa el portable actualizado que incluye la configuración del firewall.");
+        if(MessageBox.Show("Windows solicitará permisos para permitir Monii desde la red privada local. La conexión Ethernet o Wi-Fi debe estar configurada como red privada. ¿Continuar?","Firewall del servidor",MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)!=MessageBoxResult.Yes)return;
+        using var process=Process.Start(new ProcessStartInfo("powershell.exe") { UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden,Arguments="-NoProfile -ExecutionPolicy Bypass -File "+Quote(script) })!;process.WaitForExit();
+        if(process.ExitCode!=0)throw new ArgumentException("No se pudo configurar el firewall. Revisa firewall.log en los registros del servidor.");
+        Status.Text="Firewall configurado para la red privada local.";
     }
     private void UpdatePrincipal()
     {

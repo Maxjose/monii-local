@@ -122,3 +122,10 @@ Portable de corrección: artifacts/Monii-0.7.0-corregido-win-x64/Monii.exe. Se g
 
 ## Descubrimiento del servidor (2 de octubre de 2026)
 Operativo: búsqueda automática local, selección de servidor, código de confirmación inicial y guardado de huella sin teclearla. Emisor UDP en el servicio y reglas privadas de instalación/mantenimiento/desinstalación. Alternativa manual conservada en sección cerrada. Compilación correcta, 73 comprobaciones HTTPS/UDP y 106 WPF aprobadas; la prueba UDP usa loopback, no una LAN física. Pendientes mantenimiento real con UAC y piloto de dos PCs. El portable habitual actualizado permite realizar el mantenimiento y corregir el rechazo de Básico causado por el servidor anterior.
+
+
+## Ajustes de servidor — 2 de octubre de 2026
+
+- Conexión y Servidor se presentan como subsecciones. Controles del servidor en tres columnas, con margen y texto adaptable.
+- Configurar firewall solicita elevación Windows y repara únicamente las dos reglas de Monii: TCP de servicio y UDP de descubrimiento, con los puertos configurados, para red privada y subred local. No cambia la categoría de red ni desactiva el firewall. No ejecutado contra el firewall real durante las pruebas.
+- Contraseñas: mínimo 8 caracteres, probado localmente y mediante creación y autenticación por HTTPS. Si otra copia muestra 12, usar el portable actualizado completo en ese equipo. El servidor instalado inspeccionado coincide con la biblioteca actual de seguridad.

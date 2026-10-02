@@ -45,7 +45,11 @@ static async Task Verify()
 
         Check(Directory.GetFiles(data,"*.before-v5-*.db").Length==1,"Migración v4 a v5 conserva copia previa del servidor");
         Reject(()=>a.Authenticate("admin","incorrecta"),"Contraseña incorrecta rechazada");
-        a.Authenticate("admin",pass);b.Authenticate("cajero",pass);var oa=new OperationsService(a);var ob=new OperationsService(b);
+        a.Authenticate("admin",pass);
+        Reject(()=>a.SaveUser(null,"corto","Prueba",UserRole.Vendedor,true,"1234567"),"Servidor rechaza contraseña de siete caracteres");
+        a.SaveUser(null,"ocho","Prueba ocho",UserRole.Vendedor,true,"12345678");
+        using(var eightClient=new RemoteStore(config with { TerminalId=Guid.NewGuid() },Path.Combine(directory,"password-eight"))) { eightClient.Authenticate("ocho","12345678");Check(eightClient.CurrentUser is not null,"Usuario creado por red inicia sesión con ocho caracteres"); }
+        b.Authenticate("cajero",pass);var oa=new OperationsService(a);var ob=new OperationsService(b);
         Check(a.GetProducts().Single().Code=="00001","Datos existentes importados con código intacto");
         Check(a.Can(Permission.Settings)&&!b.Can(Permission.Settings),"Permisos distintos por sesión");
         Reject(()=>b.SaveSettings(b.GetSettings() with { Name="intruso" }),"Servidor impide ajustes a cajero");
@@ -102,7 +106,8 @@ static async Task Verify()
             var result=reopened.ResolvePending().Deserialize<Sale>(NetworkJson.Options)!;Check(result.Id==first.Id&&!reopened.HasPending,"Reconciliación recupera venta ya confirmada");
         }
         await app.StopAsync();await app.DisposeAsync();app=ServerHost.Build(data);await app.StartAsync();
-        a.Authenticate("admin",pass);b.Authenticate("cajero",pass);
+        a.Authenticate("admin",pass);
+        b.Authenticate("cajero",pass);
         var restarted=(await (await raw.PostAsJsonAsync("api/login",new LoginRequest("admin",pass,config.TerminalId,"Caja A"),NetworkJson.Options)).Content.ReadFromJsonAsync<LoginReply>(NetworkJson.Options))!;
         raw.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",restarted.Token);
         Check((await Send(request)).Id==first.Id,"Idempotencia persiste al reiniciar servidor");
@@ -133,7 +138,7 @@ static async Task Verify()
         Reject(()=>b.GetProducts(),"Desactivar cuenta invalida su sesión existente");
         b.Authenticate("admin",pass);b.SignOut();Reject(()=>b.GetProducts(),"Cerrar sesión revoca token");
         var uiProduct=new Product { Code="UI-RED",Name="Producto UI remoto",PriceUsd=4,CostUsd=1 };a.SaveProduct(uiProduct);oa.Adjust(uiProduct.Id,5,"UI remoto");
-        var uiDirectory=Path.Combine(directory,"ui-client");config.Save(uiDirectory);var uiOutput=Path.Combine(directory,"ui");
+        var uiDirectory=Path.Combine(directory,"ui-client");(config with { Mode="Principal" }).Save(uiDirectory);var uiOutput=Path.Combine(directory,"ui");
         var start=new System.Diagnostics.ProcessStartInfo(File.Exists(".tools/dotnet/dotnet.exe") ? Path.GetFullPath(".tools/dotnet/dotnet.exe") : "dotnet") { UseShellExecute=false,CreateNoWindow=true };
         start.ArgumentList.Add(Path.GetFullPath("src/Monii.Desktop/bin/Release/net10.0-windows/Monii.dll"));start.ArgumentList.Add("--data-dir");start.ArgumentList.Add(uiDirectory);start.ArgumentList.Add("--network-ui-verify");start.ArgumentList.Add(uiOutput);start.Environment["MONII_UI_NETWORK_TEST"]=pass;
         using(var ui=System.Diagnostics.Process.Start(start)!)

@@ -72,3 +72,10 @@ El principal debe ejecutar el runtime nuevo: desde el portable actualizado usa �
 La búsqueda usa broadcast IPv4 en la misma red/subred. Redes de invitados, aislamiento Wi-Fi, VLAN, redes públicas o firewall pueden impedirla; hay un apartado manual cerrado como alternativa. No hay búsqueda por internet. El protocolo usa un identificador aleatorio por búsqueda, valida tamaño/puerto/nombre/huella y acepta direcciones locales. Los anuncios no sustituyen la confirmación inicial del código; no contienen contraseñas ni tokens.
 
 Verificado: responder UDP real en loopback, selección de dirección/huella, login HTTPS fijando certificado, rechazo de respuesta ajena a la búsqueda o dirección no local, y formulario de conexión que guarda sin escritura manual. Pendiente: broadcast y firewall entre dos equipos físicos. La regla y servicio reales requieren mantenimiento elevado por el administrador.
+
+
+## Ajustes de servidor — 2 de octubre de 2026
+
+- Conexión y Servidor se presentan como subsecciones. Controles del servidor en tres columnas, con margen y texto adaptable.
+- Configurar firewall solicita elevación Windows y repara únicamente las dos reglas de Monii: TCP de servicio y UDP de descubrimiento, con los puertos configurados, para red privada y subred local. No cambia la categoría de red ni desactiva el firewall. No ejecutado contra el firewall real durante las pruebas.
+- Contraseñas: mínimo 8 caracteres, probado localmente y mediante creación y autenticación por HTTPS. Si otra copia muestra 12, usar el portable actualizado completo en ese equipo. El servidor instalado inspeccionado coincide con la biblioteca actual de seguridad.
