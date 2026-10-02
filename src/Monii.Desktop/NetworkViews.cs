@@ -68,6 +68,7 @@ public partial class MainWindow
             panel.Children.Add(Button("Iniciar servidor",()=>ControlServer("Start")));
             panel.Children.Add(Button("Reiniciar servidor",()=>ControlServer("Restart")));
             panel.Children.Add(Button("Detener servidor",()=>ControlServer("Stop")));
+            panel.Children.Add(Button("Desinstalar servidor",()=>Safe(UninstallPrincipal)));
             panel.Children.Add(Button("Guardar instrucciones de conexión",()=>ExportText("conexion-monii.txt","Dirección: https://"+Environment.MachineName+":58443\nHuella: "+configuration.Fingerprint+"\nCada caja debe usar un nombre distinto e iniciar sesión con su usuario.")));
             panel.Children.Add(Button("Ver registros del servidor",()=>Safe(()=>Process.Start(new ProcessStartInfo("explorer.exe",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"MoniiServer","logs")) { UseShellExecute=true }))));
         }
@@ -101,6 +102,23 @@ public partial class MainWindow
         var settings=JsonSerializer.Deserialize<ConnectionSettings>(File.ReadAllText(info))!;
         (settings with { TerminalId=ConnectionSettings.Load(App.DataDirectory).TerminalId,TerminalName=Environment.MachineName }).Save(App.DataDirectory);
         MessageBox.Show("Servidor preparado. Abre Monii nuevamente para trabajar conectado y configurar las otras cajas.","Monii");Close();
+    }
+    private void UninstallPrincipal()
+    {
+        storage.Require(Permission.Settings);
+        if(storage is RemoteStore remote&&remote.HasPending)throw new ArgumentException("Reconcilia la operación pendiente antes de desinstalar.");
+        if(storage.ReadOperations().Sessions.Any(s=>s.ClosedAt is null))throw new ArgumentException("Cierra todas las cajas antes de desinstalar el servidor.");
+        var script=Path.Combine(AppContext.BaseDirectory,"server","Uninstall-Server.ps1");
+        if(!File.Exists(script))throw new ArgumentException("Usa el portable actualizado que incluye la desinstalación.");
+        if(MessageBox.Show("Se detendrá y desinstalará el servidor de este equipo. Las otras cajas perderán la conexión. Este equipo continuará en modo local con los datos actuales; se conservarán los datos y respaldos del servidor y una copia de la base local anterior. Monii se cerrará al terminar. ¿Continuar?","Desinstalar servidor",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes)return;
+        var start=new ProcessStartInfo("powershell.exe") { UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden,Arguments="-NoProfile -ExecutionPolicy Bypass -File "+Quote(script)+" -LocalDirectory "+Quote(App.DataDirectory) };
+        using var process=Process.Start(start)!;process.WaitForExit();
+        if(process.ExitCode!=0)
+        {
+            if(ConnectionSettings.Load(App.DataDirectory).Mode=="Local") { MessageBox.Show("Los datos se recuperaron en modo local, pero quedaron componentes del servidor pendientes de retirar. Revisa el registro de desinstalación.","Monii");Close();return; }
+            throw new ArgumentException("No se completó la desinstalación. Los datos se conservan; revisa uninstall.log en la carpeta del servidor.");
+        }
+        MessageBox.Show("Servidor desinstalado. Abre Monii nuevamente para continuar en modo local con los datos actuales.","Monii");Close();
     }
     private static string Quote(string value)=>"\""+value.Replace("\"","")+"\"";
     private void ControlServer(string action)=>Safe(()=>

@@ -146,6 +146,19 @@ static async Task Verify()
         var import=ProductImport.Preview(new ProductImportFile("Red",new[]{"Codigo","Nombre","Categoria","CostoUSD","PrecioUSD"},new[]{new ImportSourceRow(2,new[]{new ImportCell("000IMPORT"),new ImportCell("Importado por API"),new ImportCell("Categoría red"),new ImportCell("1.25"),new ImportCell("2.50")})}),a.GetProducts(),a.GetCategories(),false,true);
         Check(a.ImportProducts(import)==1&&a.GetProducts().Any(p=>p.Code=="000IMPORT"&&p.CostUsd==1.25m)&&a.GetCategories().Any(c=>c.Name=="Categoría red"),"Importación remota conserva código, costo y categoría");
         Check(await a.RefreshRates(false) is not null,"Consulta de tasas se ejecuta en servidor según configuración");
+        var recoveryServer=Path.Combine(directory,"recovery-server");Directory.CreateDirectory(recoveryServer);
+        a.Backup(Path.Combine(recoveryServer,"monii.db"));
+        var recoveryLocal=Path.Combine(directory,"recovery-local");Directory.CreateDirectory(recoveryLocal);
+        var oldLocal=new SqliteStore(Path.Combine(recoveryLocal,"monii.db"));oldLocal.SaveProduct(new Product { Code="ANTERIOR",Name="Local anterior",PriceUsd=1 });
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        ServerHost.ExportLocal(recoveryServer,recoveryLocal);ServerHost.ActivateLocal(recoveryLocal);
+        var recovered=new SqliteStore(Path.Combine(recoveryLocal,"monii.db"));
+        Check(recovered.GetProducts().Any(p=>p.Code=="000IMPORT")&&recovered.ReadOperations().Sales.Count==a.ReadOperations().Sales.Count,"Desinstalación recupera catálogo y ventas centrales en modo local");
+        Check(ConnectionSettings.Load(recoveryLocal).Mode=="Local","Desinstalación configura inicio local");
+        var priorCopy=Directory.GetFiles(recoveryLocal,"monii-before-server-uninstall-*.db").Single();
+        Check(new SqliteStore(priorCopy).GetProducts().Any(p=>p.Code=="ANTERIOR"),"Desinstalación conserva copia de los datos locales anteriores");
+        Check(File.Exists(Path.Combine(recoveryServer,"monii.db")),"Desinstalación conserva base original del servidor");
+        Reject(()=>ServerHost.ExportLocal(recoveryServer,recoveryServer),"Recuperación rechaza reemplazar datos del servidor");
         Console.WriteLine($"RED COMPLETA: {passed} comprobaciones. Datos aislados: {directory}");
     }
     finally { await app.StopAsync();await app.DisposeAsync(); }

@@ -82,3 +82,9 @@ Portable: `artifacts/Monii-0.7.0-win-x64/Monii.exe`, incluyendo `server/runtime`
 
 ### Decisiones para revisar en el piloto
 Cajas independientes por defecto o caja compartida; IP reservada del principal; nombres de cajas y permisos de usuarios. Reintegros/anulaciones salen de la caja del operador, con validación de efectivo; deudas siguen en USD. Preferencias y apariencia compartidas entre equipos. Sin operación desconectada; respaldo remoto limitado a 100 MB. Guía y pasos completos en RED.md. BCV con tasa futura, tickets y distribución Windows 10 conservan su estado pendiente anterior.
+
+## Ajustes: desinstalación y cierre de sesión
+- Operativo: opción de desinstalar en el equipo principal; exige permisos, confirmación, cajas cerradas y ausencia de operaciones pendientes. Recupera datos centrales para modo local y conserva copia previa, datos originales y respaldos.
+- Operativo: cierre de sesión muestra únicamente el acceso; nuevo ingreso vuelve a abrir la vista principal.
+- Verificado: compilación sin errores/advertencias; 56 comprobaciones HTTPS, incluyendo recuperación de ventas y catálogo y preservación de base anterior; 90 comprobaciones WPF, incluyendo ventana oculta, sesión cerrada y nuevo ingreso. Script de desinstalación con sintaxis válida.
+- Pendiente de piloto: eliminación real del servicio y regla de firewall con elevación Windows. No se desinstaló ni instaló un servicio en este equipo. Los datos usados para verificar son aislados.

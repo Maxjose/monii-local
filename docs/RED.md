@@ -45,3 +45,12 @@ La instalación y los controles de SCM/firewall están implementados y los scrip
 Esta entrega está pensada para 2–3 equipos en una LAN; no incluye modo sin conexión, acceso por internet ni pruebas de carga de negocios grandes. La API utiliza lecturas completas de operaciones para algunas pantallas; paginación de todos los reportes y optimización de grandes historiales quedan para una entrega posterior.
 
 Referencia técnica del certificado en Windows: [Microsoft — diagnóstico de SslStream](https://learn.microsoft.com/en-us/dotnet/core/extensions/sslstream-troubleshooting). Se usa almacenamiento de clave de máquina durante la ejecución TLS; la huella del certificado se comprueba en cada conexión.
+
+## Desinstalar el servidor
+En el equipo principal, un administrador de Monii puede usar **Configuración > Conexión > Desinstalar servidor**. Primero debe cerrar todas las cajas y reconciliar operaciones pendientes. La acción solicita confirmación y elevación de Windows.
+
+Se detiene y elimina el servicio y su regla de firewall, y se retiran los binarios instalados. Antes de eliminarlo, Monii valida y copia la base central al equipo principal para continuar en modo local con sus datos actuales. La base local anterior se conserva como `monii-before-server-uninstall-*.db`. Los datos originales, certificados, respaldos y registros del servidor se conservan en `%PROGRAMDATA%\MoniiServer`. Las otras cajas dejarán de conectarse. Monii se cierra al finalizar: ábrelo nuevamente e ingresa con los usuarios recuperados del servidor.
+
+Si la copia o validación falla, no se elimina el servicio; se intenta reanudarlo si estaba funcionando. Si falla la limpieza después de recuperar los datos, consulta `uninstall.log`: puede quedar material instalado pendiente de retirar. No borres los respaldos hasta verificar la recuperación.
+
+Cerrar sesión oculta y limpia la ventana principal mientras aparece el acceso. Al ingresar de nuevo, la ventana principal vuelve a mostrarse; cerrar la ventana de acceso termina Monii.

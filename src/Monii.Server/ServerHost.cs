@@ -11,12 +11,14 @@ namespace Monii.Server;
 
 public sealed record ServerConfiguration(int Port=58443);
 public sealed record ServerSession(SessionUser User,string Stamp,Guid TerminalId,string TerminalName,DateTimeOffset Expires);
-public static class ServerHost
+public static partial class ServerHost
 {
     public static async Task Run(string[] args)
     {
         string Option(string name,string fallback) { var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback; }
         var directory=Path.GetFullPath(Option("--data-dir",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"MoniiServer","data")));
+        if(args.Contains("--export-local")) { ExportLocal(directory,Option("--local-dir",""));return; }
+        if(args.Contains("--activate-local")) { ActivateLocal(Option("--local-dir",""));return; }
         if(args.Contains("--prepare")) { Prepare(directory,Option("--import",""));return; }
         var app=Build(directory,args);await app.RunAsync();
     }

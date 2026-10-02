@@ -99,8 +99,13 @@ public partial class MainWindow : Window
             if(page=="Cerrar sesión")
             {
                 if(!ConfirmSignOut()) return;
-                saleCart.Clear(); demoCart.Clear(); storage.SignOut();
-                if(!App.SignIn(storage)) { Close(); return; }
+                saleCart.Clear(); demoCart.Clear();
+                var resumeExchange=exchangeTimer.IsEnabled;exchangeTimer.Stop();
+                Hide();PageContent.Content=null;Navigation.Children.Clear();BusinessName.Text="";PageTitle.Text="";Status.Text="";
+                storage.SignOut();
+                try { if(!App.SignIn(storage)) { Close(); return; } }
+                catch { Close();throw; }
+                Show();if(resumeExchange)exchangeTimer.Start();
                 page="Inicio";
             }
             var permission=page switch { "Configuración" or "Apariencia"=>Permission.Settings,"Categorías"=>Permission.Products,"Inventario"=>Permission.Inventory,"Compras"=>Permission.Purchases,"Clientes"=>Permission.Customers,"Créditos"=>Permission.Credit,"Caja"=>Permission.Cash,"Reportes"=>Permission.Reports,"Respaldos"=>Permission.Backup,"Usuarios"=>Permission.Users,"Actualizaciones"=>Permission.Updates,_=>(Permission?)null };

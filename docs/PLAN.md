@@ -56,3 +56,6 @@ Completado: manifiesto firmado preparado para Maxjose/monii-local, consulta auto
 ## Monii 0.7 — varias computadoras
 
 Implementados gateway local/remoto, servidor ASP.NET Core para servicio Windows, configuración de equipo, migración v5, cajas por terminal o compartida, permisos centrales, comprobantes persistentes de peticiones y reconciliación. Respaldos centrales con restauración exclusiva y revocación de sesiones. Verificaciones: 239 locales, 51 de red, 88 WPF locales y 13 WPF conectadas. Portable local preparado; instalación física del servicio, reinicio del equipo y LAN real pendientes por falta de elevación Windows y segundo equipo. No se desplegó ni se publicaron actualizaciones.
+
+### Ajustes posteriores al servidor central
+Completados: desinstalación protegida con recuperación a modo local, preservación de datos previos y cierre de sesión con ventana principal oculta. Verificados recuperación y acceso en bases aisladas. Pendiente: piloto de desinstalación real bajo UAC en Windows.

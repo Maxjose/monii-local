@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -108,6 +108,24 @@ public partial class MainWindow
             Assert(Descendants(window).OfType<Button>().Single(b=>b.Content?.ToString()=="Cancelar").IsDefault,"Cancelar es la opción predeterminada");
         });
         Assert(approved,"Confirmar autoriza el cierre de sesión");
+        var logoutPassword="Monii-Logout-Test-8472";
+        storage.SaveUser(null,"logout-ui","Prueba de sesión",UserRole.Administrador,true,logoutPassword);
+        Exception? logoutFailure=null;var logoutStage=0;
+        var logoutTimer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(150) };
+        logoutTimer.Tick+=(_,_)=> {
+            try {
+                if(logoutStage==0) { logoutStage=1;Click(OwnedWindows.Cast<Window>().Single(),"Cerrar sesión"); }
+                else {
+                    logoutTimer.Stop();var login=System.Windows.Application.Current.Windows.OfType<LoginWindow>().Single();
+                    Assert(!IsVisible&&PageContent.Content is null&&storage.CurrentUser is null,"Al cerrar sesión solo permanece visible la ventana de acceso");
+                    Capture(login,"acceso-sin-ventana-fondo.png");
+                    Descendants(login).OfType<TextBox>().Single().Text="logout-ui";
+                    Descendants(login).OfType<PasswordBox>().Single().Password=logoutPassword;Click(login,"Ingresar");
+                }
+            } catch(Exception error) { logoutTimer.Stop();logoutFailure=error;foreach(var dialog in System.Windows.Application.Current.Windows.Cast<Window>().Where(w=>w!=this).ToList())dialog.Close(); }
+        };
+        logoutTimer.Start();Navigate("Cerrar sesión");if(logoutFailure is not null)throw logoutFailure;
+        Assert(IsVisible&&storage.CurrentUser?.Username=="logout-ui","Nuevo inicio de sesión recupera ventana principal");
         Navigate("Inicio"); UpdateLayout(); Capture((FrameworkElement)Content,"inicio-04.png");
     }
 }
