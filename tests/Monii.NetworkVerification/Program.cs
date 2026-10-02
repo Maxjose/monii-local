@@ -49,6 +49,17 @@ static async Task Verify()
         Reject(()=>a.SaveUser(null,"corto","Prueba",UserRole.Vendedor,true,"1234567"),"Servidor rechaza contraseña de siete caracteres");
         a.SaveUser(null,"ocho","Prueba ocho",UserRole.Vendedor,true,"12345678");
         using(var eightClient=new RemoteStore(config with { TerminalId=Guid.NewGuid() },Path.Combine(directory,"password-eight"))) { eightClient.Authenticate("ocho","12345678");Check(eightClient.CurrentUser is not null,"Usuario creado por red inicia sesión con ocho caracteres"); }
+        using(var otherAdmin=new RemoteStore(config with { TerminalId=Guid.NewGuid() },Path.Combine(directory,"other-admin")))
+        {
+            otherAdmin.Authenticate("admin",pass);var self=a.Users().Single(u=>u.Username=="admin");
+            a.SaveUser(self.Id,self.Username,self.Name,self.Role,true,"abcdefgh");
+            Check(a.Users().Any(u=>u.Id==self.Id),"Cambiar contraseña propia permite recargar usuarios sin perder sesión");
+            Reject(()=>otherAdmin.Users(),"Cambio de contraseña revoca otras sesiones de la misma cuenta");
+            using var fresh=new RemoteStore(config with { TerminalId=Guid.NewGuid() },Path.Combine(directory,"new-password"));
+            Reject(()=>fresh.Authenticate("admin",pass),"Contraseña anterior deja de funcionar");
+            fresh.Authenticate("admin","abcdefgh");Check(fresh.CurrentUser is not null,"Nueva contraseña de ocho caracteres permite iniciar sesión");
+            a.SaveUser(self.Id,self.Username,self.Name,self.Role,true,pass);
+        }
         b.Authenticate("cajero",pass);var oa=new OperationsService(a);var ob=new OperationsService(b);
         Check(a.GetProducts().Single().Code=="00001","Datos existentes importados con código intacto");
         Check(a.Can(Permission.Settings)&&!b.Can(Permission.Settings),"Permisos distintos por sesión");

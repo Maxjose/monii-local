@@ -147,7 +147,24 @@ public static partial class ServerHost
                     var incoming=a.GetProperty("settings").Deserialize<BusinessSettings>(NetworkJson.Options)!;var previous=store.GetSettings();
                     new BusinessService(store).SaveSettings(incoming with { BackupDirectory=previous.BackupDirectory,UpdateFeedUrl=previous.UpdateFeedUrl });break;
                 case "Category":store.SaveCategory(a.GetProperty("category").Deserialize<Category>(NetworkJson.Options)!);break;
-                case "User":store.SaveUser(a.GetProperty("id").Deserialize<Guid?>(),a.GetProperty("username").GetString()!,a.GetProperty("name").GetString()!,a.GetProperty("role").Deserialize<UserRole>(),a.GetProperty("active").GetBoolean(),a.GetProperty("password").GetString());break;
+                case "User":
+                    var editedId=a.GetProperty("id").Deserialize<Guid?>();
+                    var username=a.GetProperty("username").GetString()!;var name=a.GetProperty("name").GetString()!;
+                    var role=a.GetProperty("role").Deserialize<UserRole>();var active=a.GetProperty("active").GetBoolean();
+                    store.SaveUser(editedId,username,name,role,active,a.GetProperty("password").GetString());
+                    if(editedId is { } userId)
+                    {
+                        // Renew only the requesting session after a successful self edit.
+                        // Other terminals must authenticate again with the new credentials.
+                        var currentToken=context.Request.Headers.Authorization.ToString()[7..];
+                        foreach(var entry in sessions.Where(s=>s.Value.User.Id==userId).ToArray())
+                        {
+                            if(entry.Key==currentToken&&active&&entry.Value.User.Role==role)
+                                sessions[entry.Key]=entry.Value with { User=new(userId,username.Trim(),name.Trim(),role),Stamp=store.SessionStamp(userId) };
+                            else sessions.TryRemove(entry.Key,out _);
+                        }
+                    }
+                    break;
                 case "Import":result=store.ImportProducts(a.GetProperty("preview").Deserialize<ProductImportPreview>(NetworkJson.Options)!);break;
                 case "AutoBackup":store.Require(Permission.Backup);store.AutomaticBackup();break;
                 case "ValidateBackup":case "Restore":

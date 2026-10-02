@@ -75,3 +75,8 @@ Implementados actualización manual del servicio instalado con respaldo/copia pr
 - Conexión y Servidor se presentan como subsecciones. Controles del servidor en tres columnas, con margen y texto adaptable.
 - Configurar firewall solicita elevación Windows y repara únicamente las dos reglas de Monii: TCP de servicio y UDP de descubrimiento, con los puertos configurados, para red privada y subred local. No cambia la categoría de red ni desactiva el firewall. No ejecutado contra el firewall real durante las pruebas.
 - Contraseñas: mínimo 8 caracteres, probado localmente y mediante creación y autenticación por HTTPS. Si otra copia muestra 12, usar el portable actualizado completo en ese equipo. El servidor instalado inspeccionado coincide con la biblioteca actual de seguridad.
+
+
+## Corrección de sesión al cambiar contraseña — 2 de octubre de 2026
+
+El cambio se guardaba, pero la siguiente recarga fallaba porque el sello de sesión incluía la contraseña anterior. El servidor renueva exclusivamente la sesión que realiza una edición propia si la cuenta continúa activa y conserva su rol. Las demás sesiones de la cuenta se revocan; una desactivación o cambio de rol no renueva la sesión. Se verifica cambio propio, recarga de usuarios, rechazo de contraseña anterior y acceso con la nueva. Requiere actualizar el servidor instalado desde el portable corregido, con todas las cajas cerradas.
