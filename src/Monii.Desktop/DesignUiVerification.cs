@@ -121,6 +121,7 @@ public partial class MainWindow
                     Capture(login,"acceso-sin-ventana-fondo.png");
                     Descendants(login).OfType<TextBox>().Single().Text="logout-ui";
                     Descendants(login).OfType<PasswordBox>().Single().Password=logoutPassword;Click(login,"Ingresar");
+                    Assert(!Descendants(login).OfType<Button>().Single(b=>b.IsDefault).IsEnabled&&Descendants(login).OfType<Button>().Single(b=>b.IsDefault).Content is StackPanel loadingPanel&&loadingPanel.Children.OfType<TextBlock>().Any(t=>t.Text=="Iniciando sesión…"),"Acceso muestra carga y evita envíos duplicados durante autenticación");
                 }
             } catch(Exception error) { logoutTimer.Stop();logoutFailure=error;foreach(var dialog in System.Windows.Application.Current.Windows.Cast<Window>().Where(w=>w!=this).ToList())dialog.Close(); }
         };

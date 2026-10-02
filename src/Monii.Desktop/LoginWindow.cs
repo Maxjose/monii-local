@@ -1,4 +1,7 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Monii.Application;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,10 +24,38 @@ public sealed class LoginWindow : Window
         panel.Children.Add(new TextBlock { Text=setup?"Contraseña (al menos 12 caracteres)":"Contraseña" }); var password=new PasswordBox { Padding=new Thickness(10),Margin=new Thickness(0,8,0,8) }; panel.Children.Add(password);
         var error=new TextBlock { TextWrapping=TextWrapping.Wrap,Foreground=Theme.Resource("ThemeError") }; panel.Children.Add(error);
         var submit=new Button { Content=setup?"Crear cuenta e ingresar":"Ingresar",IsDefault=true }; panel.Children.Add(submit);
-        submit.Click+=(_,_)=>
+        var busy=false;
+        Closing+=(_,args)=> { if(busy)args.Cancel=true; };
+        submit.Click+=async (_,_)=>
         {
-            try { if(setup) store.SaveUser(null,username.Text,name!.Text,UserRole.Administrador,true,password.Password); store.Authenticate(username.Text,password.Password); password.Clear(); DialogResult=true; }
-            catch(Exception e) { error.Text=e.Message; password.Clear(); }
+            if(busy)return;
+            var loginName=username.Text;var displayName=name?.Text;var secret=password.Password;
+            busy=true;error.Text="";
+            username.IsEnabled=false;password.IsEnabled=false;if(name is not null)name.IsEnabled=false;
+            foreach(var button in panel.Children.OfType<Button>())button.IsEnabled=false;
+            var rotation=new RotateTransform();
+            var spinner=new TextBlock { Text="◌",FontSize=22,VerticalAlignment=VerticalAlignment.Center,RenderTransformOrigin=new Point(.5,.5),RenderTransform=rotation,Margin=new Thickness(0,0,10,0) };
+            var loading=new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Center };
+            loading.Children.Add(spinner);loading.Children.Add(new TextBlock { Text="Iniciando sesión…",VerticalAlignment=VerticalAlignment.Center });
+            submit.Content=loading;
+            System.Windows.Automation.AutomationProperties.SetName(submit,"Iniciando sesión, espera");
+            rotation.BeginAnimation(RotateTransform.AngleProperty,new DoubleAnimation(0,360,TimeSpan.FromSeconds(1)) { RepeatBehavior=RepeatBehavior.Forever });
+            var succeeded=false;
+            try
+            {
+                await Task.Run(()=> { if(setup)store.SaveUser(null,loginName,displayName!,UserRole.Administrador,true,secret);store.Authenticate(loginName,secret); });
+                succeeded=true;
+            }
+            catch(Exception e) { error.Text=e.Message; }
+            finally
+            {
+                busy=false;password.Clear();rotation.BeginAnimation(RotateTransform.AngleProperty,null);
+                submit.Content=setup?"Crear cuenta e ingresar":"Ingresar";
+                System.Windows.Automation.AutomationProperties.SetName(submit,submit.Content.ToString());
+                username.IsEnabled=true;password.IsEnabled=true;if(name is not null)name.IsEnabled=true;
+                foreach(var button in panel.Children.OfType<Button>())button.IsEnabled=true;
+            }
+            if(succeeded)DialogResult=true;else password.Focus();
         };
         if(store is RemoteStore)
         {

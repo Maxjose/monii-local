@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -23,11 +23,12 @@ public partial class MainWindow
         void Modal(Action open,string save,Action<Window> fill,string? capture=null)
         {
             Exception? failure=null; var timer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(150) };
-            timer.Tick+=(_,_)=>
+            timer.Tick+=async (_,_)=>
             {
                 timer.Stop(); var window=OwnedWindows.Cast<Window>().Single();
                 try { window.UpdateLayout(); fill(window); window.UpdateLayout(); if(capture is not null) Capture((FrameworkElement)window.Content,capture); Descendants(window).OfType<Button>().First(b=>b.Content?.ToString()==save).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); }
                 catch(Exception e) { failure=e; }
+                if(window is LoginWindow) { for(var attempt=0;attempt<100&&window.IsVisible;attempt++)await System.Threading.Tasks.Task.Delay(50); }
                 if(window.IsVisible) { failure??=new InvalidOperationException("Formulario sin cerrar: "+save); window.Close(); }
             }; timer.Start(); open(); if(failure is not null) throw failure;
         }

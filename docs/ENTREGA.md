@@ -88,3 +88,6 @@ Cajas independientes por defecto o caja compartida; IP reservada del principal; 
 - Operativo: cierre de sesión muestra únicamente el acceso; nuevo ingreso vuelve a abrir la vista principal.
 - Verificado: compilación sin errores/advertencias; 56 comprobaciones HTTPS, incluyendo recuperación de ventas y catálogo y preservación de base anterior; 90 comprobaciones WPF, incluyendo ventana oculta, sesión cerrada y nuevo ingreso. Script de desinstalación con sintaxis válida.
 - Pendiente de piloto: eliminación real del servicio y regla de firewall con elevación Windows. No se desinstaló ni instaló un servicio en este equipo. Los datos usados para verificar son aislados.
+
+### Indicador de inicio de sesión
+El botón Ingresar muestra un icono animado y «Iniciando sesión…» durante autenticación, sin bloquear la interfaz. Impide solicitudes repetidas y cambios de conexión durante la espera. Ante error vuelve a habilitar el formulario para reintentar. Compilación correcta y 91 comprobaciones WPF aprobadas, incluida carga y nuevo acceso. Portable actualizado.
