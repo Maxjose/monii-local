@@ -25,15 +25,24 @@ static async Task Verify()
         legacy.Open();using var command=legacy.CreateCommand();command.CommandText="DROP TABLE network_meta;DROP TABLE request_receipts;DROP INDEX ix_one_open_cash;CREATE UNIQUE INDEX ix_one_open_cash ON cash_sessions((1)) WHERE closed IS NULL;PRAGMA user_version=4";command.ExecuteNonQuery();
     }
     ServerHost.Prepare(data,source);File.WriteAllText(Path.Combine(data,"verification.allow"),"isolated test");
-    File.WriteAllText(Path.Combine(data,"server.json"),JsonSerializer.Serialize(new ServerConfiguration(0)));
+    File.WriteAllText(Path.Combine(data,"server.json"),JsonSerializer.Serialize(new ServerConfiguration(0,0)));
     var app=ServerHost.Build(data);await app.StartAsync();
     var addresses=app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses;
-    var port=new Uri(addresses.Single()).Port;File.WriteAllText(Path.Combine(data,"server.json"),JsonSerializer.Serialize(new ServerConfiguration(port)));var config=ConnectionSettings.Load(directory) with { Address=$"https://localhost:{port}",Mode="Cliente",TerminalName="Caja A" };
+    var port=new Uri(addresses.Single()).Port;File.WriteAllText(Path.Combine(data,"server.json"),JsonSerializer.Serialize(new ServerConfiguration(port,0)));var config=ConnectionSettings.Load(directory) with { Address=$"https://localhost:{port}",Mode="Cliente",TerminalName="Caja A" };
     using var a=new RemoteStore(config,Path.Combine(directory,"a"));using var b=new RemoteStore(config with { TerminalId=Guid.NewGuid(),TerminalName="Caja B" },Path.Combine(directory,"b"));
     var passed=0;void Check(bool ok,string name) { if(!ok)throw new Exception("FALLO: "+name);Console.WriteLine("OK RED: "+name);passed++; }
     void Reject(Action action,string name) { try { action(); } catch(Exception e) when(e is ArgumentException or UnauthorizedAccessException or IOException) { Check(true,name);return; }throw new Exception("FALLO: "+name); }
     try
     {
+        var discovery=app.Services.GetRequiredService<DiscoveryResponder>();for(var attempt=0;attempt<30&&discovery.BoundPort==0;attempt++)await Task.Delay(50);
+        var discovered=await LocalDiscovery.FindAsync(target:new System.Net.IPEndPoint(System.Net.IPAddress.Loopback,discovery.BoundPort));
+        Check(discovered.Count==1&&discovered[0].Fingerprint==config.Fingerprint&&new Uri(discovered[0].Address).Port==port,"Búsqueda LAN encuentra servidor y huella sin escritura manual");
+        using(var foundClient=new RemoteStore(config with { Address=discovered[0].Address,Fingerprint=discovered[0].Fingerprint,TerminalId=Guid.NewGuid() },Path.Combine(directory,"discovered-client"))) { foundClient.Authenticate("admin",pass);Check(foundClient.CurrentUser is not null,"Conexión descubierta autentica mediante HTTPS con huella fijada"); }
+        var nonce=Guid.NewGuid();var reply=JsonSerializer.SerializeToUtf8Bytes(new DiscoveryReply(LocalDiscovery.Protocol,nonce,"Servidor",port,config.Fingerprint));
+        Check(LocalDiscovery.ParseReply(reply,new(System.Net.IPAddress.Loopback,58444),Guid.NewGuid()) is null,"Descubrimiento rechaza respuestas de otra búsqueda");
+        Check(LocalDiscovery.ParseReply(reply,new(System.Net.IPAddress.Parse("8.8.8.8"),58444),nonce) is null,"Descubrimiento no acepta servidores fuera de direcciones locales");
+        Check(LocalDiscovery.PairingCode(config.Fingerprint).Length==14,"Código corto identifica la huella para confirmar el principal");
+
         Check(Directory.GetFiles(data,"*.before-v5-*.db").Length==1,"Migración v4 a v5 conserva copia previa del servidor");
         Reject(()=>a.Authenticate("admin","incorrecta"),"Contraseña incorrecta rechazada");
         a.Authenticate("admin",pass);b.Authenticate("cajero",pass);var oa=new OperationsService(a);var ob=new OperationsService(b);
@@ -171,6 +180,11 @@ static async Task Verify()
         }
         new BusinessService(a).SaveSettings(fullProfile);
         Check(a.ReadOperations().Sales.Any(s=>s.Id==lotSale.Id)&&OperationsService.Lots(a.ReadOperations(),uiProduct.Id).Any(l=>l.Code=="RED-FEFO"&&l.Quantity==2),"Volver a perfil completo conserva ventas y lotes centrales");
+        var maintenanceBackup=Path.Combine(directory,"maintenance-copy.db");
+        ServerHost.MaintenanceCopy(Path.Combine(data,"monii.db"),maintenanceBackup,true);
+        using(var checkDb=new Microsoft.Data.Sqlite.SqliteConnection("Data Source="+maintenanceBackup)) { checkDb.Open();using var maintenanceCommand=checkDb.CreateCommand();maintenanceCommand.CommandText="PRAGMA user_version";Check(Convert.ToInt32(maintenanceCommand.ExecuteScalar())==6,"Mantenimiento conserva esquema al respaldar sin migrar el origen"); }
+        var maintenanceTarget=Path.Combine(directory,"maintenance-restore.db");ServerHost.MaintenanceCopy(maintenanceBackup,maintenanceTarget,false);
+        Check(new SqliteStore(maintenanceTarget).ReadOperations().Sales.Count==a.ReadOperations().Sales.Count,"Recuperación de mantenimiento conserva ventas");
         var recoveryServer=Path.Combine(directory,"recovery-server");Directory.CreateDirectory(recoveryServer);
         a.Backup(Path.Combine(recoveryServer,"monii.db"));
         var recoveryLocal=Path.Combine(directory,"recovery-local");Directory.CreateDirectory(recoveryLocal);

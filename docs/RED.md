@@ -54,3 +54,21 @@ Se detiene y elimina el servicio y su regla de firewall, y se retiran los binari
 Si la copia o validación falla, no se elimina el servicio; se intenta reanudarlo si estaba funcionando. Si falla la limpieza después de recuperar los datos, consulta `uninstall.log`: puede quedar material instalado pendiente de retirar. No borres los respaldos hasta verificar la recuperación.
 
 Cerrar sesión oculta y limpia la ventana principal mientras aparece el acceso. Al ingresar de nuevo, la ventana principal vuelve a mostrarse; cerrar la ventana de acceso termina Monii.
+
+## Corrección: servidor instalado anterior al perfil básico (2 de octubre de 2026)
+Se detectó una instalación activa cuyos archivos difieren del portable nuevo. La instalación anterior conserva su copia de los binarios; reiniciar por sí solo no la actualiza. Esto puede producir «Perfil de negocio inválido» cuando el cliente nuevo envía Básico al servidor anterior.
+
+En el principal, abre el portable nuevo y usa Configuración > Conexión > Actualizar servidor instalado. Exige administrador de Monii/Windows, confirmación y todas las cajas cerradas. Crea respaldo de base sin migrar el origen y copia de los binarios; reemplaza runtime, prepara migraciones y reinicia. Si falla antes de iniciar, restaura base/binarios previos; después de intentar iniciar no reemplaza automáticamente la base para evitar perder operaciones nuevas. Registros en maintenance.log y copias protegidas en ProgramData/MoniiServer/maintenance. La instalación sobre servicio existente también usa este mantenimiento.
+
+Reabre Monii e ingresa antes de seleccionar Básico. La interfaz reconoce el rechazo del servidor antiguo y muestra una indicación concreta. Compilación y prueba HTTPS de respaldo/recuperación verificadas con datos aislados; sintaxis de scripts comprobada. No se actualizó el servicio real desde esta sesión: la acción requiere elevación Windows y debe hacerse con cajas cerradas.
+
+Portable de corrección: artifacts/Monii-0.7.0-corregido-win-x64/Monii.exe. Se generó por separado porque la aplicación abierta bloqueaba archivos del portable anterior. Prueba HTTPS: 68 comprobaciones aprobadas. El servicio instalado permanece pendiente de mantenimiento autorizado con elevación Windows.
+
+## Búsqueda automática del principal
+En otra computadora, elige «Conectar al equipo principal». Monii busca durante tres segundos, presenta los servidores encontrados y completa la dirección y huella al seleccionar uno. La primera vez compara el código corto con el mostrado en Configuración > Conexión del principal; confirma solo si coincide. No se escribe la huella. Con la conexión guardada, las siguientes aperturas usan el acceso habitual sin volver a emparejar. Si cambia el certificado, requiere nueva confirmación.
+
+El principal debe ejecutar el runtime nuevo: desde el portable actualizado usa «Actualizar servidor instalado». El mantenimiento añade la regla de descubrimiento UDP 58444 exclusivamente para red privada y subred local. Instalaciones nuevas la incluyen; desinstalar retira esa regla. HTTPS y la huella fijada siguen protegiendo el acceso a los datos.
+
+La búsqueda usa broadcast IPv4 en la misma red/subred. Redes de invitados, aislamiento Wi-Fi, VLAN, redes públicas o firewall pueden impedirla; hay un apartado manual cerrado como alternativa. No hay búsqueda por internet. El protocolo usa un identificador aleatorio por búsqueda, valida tamaño/puerto/nombre/huella y acepta direcciones locales. Los anuncios no sustituyen la confirmación inicial del código; no contienen contraseñas ni tokens.
+
+Verificado: responder UDP real en loopback, selección de dirección/huella, login HTTPS fijando certificado, rechazo de respuesta ajena a la búsqueda o dirección no local, y formulario de conexión que guarda sin escritura manual. Pendiente: broadcast y firewall entre dos equipos físicos. La regla y servicio reales requieren mantenimiento elevado por el administrador.

@@ -22,6 +22,7 @@ try {
     $removed=$true
     & $serverExecutable --activate-local --local-dir $resolvedLocal
     if($LASTEXITCODE -ne 0){throw 'No se pudo activar el modo local.'}
+    Get-NetFirewallRule -DisplayName "Monii Server - Descubrimiento local" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     Get-NetFirewallRule -DisplayName 'Monii Server - Red privada' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     # Only installed binaries are removed. Data, certificates, backups and logs are retained.
     $resolvedApp=(Resolve-Path -LiteralPath $principalApp).Path

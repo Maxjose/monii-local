@@ -105,7 +105,12 @@ public sealed class RemoteStore : IMoniiStore, IDisposable
     public IReadOnlyList<Product> GetProducts()=>Read<List<Product>>("Products");
     public void SaveProduct(Product product)=>Write<bool>("Product",new { product });
     public BusinessSettings GetSettings()=>CurrentUser is null ? new() : Read<BusinessSettings>("Settings");
-    public void SaveSettings(BusinessSettings settings)=>Write<bool>("Settings",new { settings });
+    public void SaveSettings(BusinessSettings settings)
+    {
+        try { Write<bool>("Settings",new { settings }); }
+        catch(ArgumentException error) when(settings.Profile==BusinessProfile.Basic&&error.Message.Contains("Perfil de negocio inválido",StringComparison.OrdinalIgnoreCase))
+        { throw new ArgumentException("El servidor instalado aún no admite el perfil Básico. En el equipo principal, abre Configuración > Conexión > Actualizar servidor instalado y vuelve a iniciar sesión."); }
+    }
     public IReadOnlyList<AuditEntry> GetAudit()=>Read<List<AuditEntry>>("Audit");
     public OperationsState ReadOperations()=>Read<OperationsState>("State");
     public IReadOnlyList<Category> GetCategories()=>Read<List<Category>>("Categories");

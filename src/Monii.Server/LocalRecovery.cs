@@ -29,6 +29,17 @@ public static partial class ServerHost
         }
         finally { if(File.Exists(temporary))File.Delete(temporary); }
     }
+    public static void MaintenanceCopy(string sourcePath,string targetPath,bool backup)
+    {
+        sourcePath=Path.GetFullPath(sourcePath);targetPath=Path.GetFullPath(targetPath);
+        if(sourcePath.Equals(targetPath,StringComparison.OrdinalIgnoreCase)||!File.Exists(sourcePath)||backup&&File.Exists(targetPath))throw new ArgumentException("Rutas inválidas para el respaldo de mantenimiento.");
+        Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+        using var source=new SqliteConnection(new SqliteConnectionStringBuilder { DataSource=sourcePath,Mode=SqliteOpenMode.ReadOnly,Pooling=false }.ToString());source.Open();
+        using var check=source.CreateCommand();check.CommandText="PRAGMA integrity_check";
+        if(check.ExecuteScalar()?.ToString()!="ok")throw new ArgumentException("La base no supera la comprobación de integridad.");
+        if(backup) { check.CommandText="SELECT count(*) FROM cash_sessions WHERE closed IS NULL";if(Convert.ToInt32(check.ExecuteScalar())>0)throw new ArgumentException("Cierra todas las cajas antes de actualizar el servidor."); }
+        using var target=new SqliteConnection(new SqliteConnectionStringBuilder { DataSource=targetPath,Pooling=false }.ToString());target.Open();source.BackupDatabase(target);
+    }
     public static void ActivateLocal(string localDirectory)
     {
         if(string.IsNullOrWhiteSpace(localDirectory)||!File.Exists(Path.Combine(localDirectory,"monii.db")))throw new ArgumentException("No se preparó la base local.");

@@ -9,7 +9,7 @@ using Monii.Domain;
 using Monii.Infrastructure;
 namespace Monii.Server;
 
-public sealed record ServerConfiguration(int Port=58443);
+public sealed record ServerConfiguration(int Port=58443,int DiscoveryPort=58444);
 public sealed record ServerSession(SessionUser User,string Stamp,Guid TerminalId,string TerminalName,DateTimeOffset Expires);
 public static partial class ServerHost
 {
@@ -17,6 +17,8 @@ public static partial class ServerHost
     {
         string Option(string name,string fallback) { var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback; }
         var directory=Path.GetFullPath(Option("--data-dir",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"MoniiServer","data")));
+        if(args.Contains("--maintenance-backup")) { MaintenanceCopy(Path.Combine(directory,"monii.db"),Option("--target",""),true);return; }
+        if(args.Contains("--maintenance-restore")) { MaintenanceCopy(Option("--source",""),Path.Combine(directory,"monii.db"),false);return; }
         if(args.Contains("--export-local")) { ExportLocal(directory,Option("--local-dir",""));return; }
         if(args.Contains("--activate-local")) { ActivateLocal(Option("--local-dir",""));return; }
         if(args.Contains("--prepare")) { Prepare(directory,Option("--import",""));return; }
@@ -59,6 +61,8 @@ public static partial class ServerHost
         var certificate=X509CertificateLoader.LoadPkcs12FromFile(Path.Combine(directory,"server.pfx"),null,X509KeyStorageFlags.MachineKeySet);
         var builder=WebApplication.CreateBuilder(args??[]);
         builder.Logging.AddProvider(new FileLog(Path.Combine(Path.GetDirectoryName(directory)!,"logs")));
+        builder.Services.AddSingleton(provider=>new DiscoveryResponder(provider.GetRequiredService<IHostApplicationLifetime>(),provider.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>(),configuration,Convert.ToHexString(SHA256.HashData(certificate.RawData)),provider.GetRequiredService<ILogger<DiscoveryResponder>>()));
+        builder.Services.AddHostedService(provider=>provider.GetRequiredService<DiscoveryResponder>());
         builder.Services.AddWindowsService(options=>options.ServiceName="MoniiServer");
         builder.WebHost.ConfigureKestrel(options=>
         {

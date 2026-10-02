@@ -174,6 +174,14 @@ public partial class MainWindow
         Navigate("Ventas");Assert(PageTitle.Text=="Listado de precios","Acceso directo a ventas redirige al listado básico");
         service.SaveSettings(completeSettings);Navigate("Inicio");
         Assert(Descendants(Navigation).OfType<Button>().Any(b=>b.Content?.ToString()=="Ventas"),"Volver a perfil completo recupera navegación anterior");
+        var discoveredSettings=new Monii.Infrastructure.ConnectionSettings { Fingerprint=new string('A',64) };var discoveredFolder=Path.Combine(output,"discovery-settings");discoveredSettings.Save(discoveredFolder);
+        Modal(()=>new ConnectionWindow(discoveredFolder,_=>Task.FromResult<IReadOnlyList<Monii.Infrastructure.DiscoveredServer>>([new("Principal de prueba","https://127.0.0.1:58443",discoveredSettings.Fingerprint)])) { Owner=this }.ShowDialog(),"Guardar y continuar",window=> {
+            Descendants(window).OfType<ComboBox>().First().SelectedIndex=1;window.UpdateLayout();
+            Assert(Descendants(window).OfType<ComboBox>().Any(c=>c.SelectedItem is Monii.Infrastructure.DiscoveredServer),"Búsqueda selecciona principal encontrado y completa conexión automáticamente");
+            Assert(!Descendants(window).OfType<Expander>().Single().IsExpanded,"Conexión automática mantiene datos técnicos en sección manual cerrada");Capture(window,"conexion-automatica.png");
+        });
+        var paired=Monii.Infrastructure.ConnectionSettings.Load(discoveredFolder);
+        Assert(paired.Mode=="Cliente"&&paired.Address=="https://127.0.0.1:58443"&&paired.Fingerprint==discoveredSettings.Fingerprint,"Guardar servidor descubierto conserva dirección y huella sin escritura manual");
         Navigate("Inicio"); UpdateLayout(); Capture((FrameworkElement)Content,"inicio-04.png");
     }
 }

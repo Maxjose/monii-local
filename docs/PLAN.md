@@ -65,3 +65,6 @@ Completados recepción, clasificación, ajustes, alertas, listado, asignación F
 
 ### Perfil básico
 Completados perfil Básico, navegación reducida, inicio sencillo, formulario de producto sin campos avanzados y listado de precios con búsqueda/categoría/monedas activas. Configuración, respaldo y acceso conservados. Operaciones financieras bloqueadas en aplicación/servidor; histórico y preferencias preservados al cambiar perfil. Guía: BASICO.md.
+
+### Mantenimiento y detección local del servidor
+Implementados actualización manual del servicio instalado con respaldo/copia previa, mensaje específico para Básico no reconocido por runtime anterior, búsqueda UDP IPv4 y confirmación inicial mediante código corto. Verificados servidor UDP local, login HTTPS y formulario de guardado. Piloto físico/firewall/UAC pendientes. Guía en RED.md.

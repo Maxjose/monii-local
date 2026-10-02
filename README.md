@@ -4,6 +4,7 @@ Aplicación Windows en español desarrollada con C#, .NET 10, WPF y SQLite. Admi
 
 ## Funciones operativas
 - Perfil básico para productos, categorías y consulta de precios, con formulario reducido. Guía en docs/BASICO.md.
+- Búsqueda automática del servidor en red local con confirmación de código y mantenimiento del servicio instalado.
 - Modo local y modo de red, autenticación central, cajas por equipo y protección contra operaciones duplicadas.
 - Catálogo y categorías: creación, edición, búsqueda, códigos, costos/precios USD y desactivación con historial.
 - Inventario, compras/proveedores, ventas, caja, clientes, créditos y abonos.
@@ -49,7 +50,7 @@ La clave pública está incorporada en el código. La clave privada original per
 No se publica ninguna Release ni ZIP de actualización en esta etapa.
 
 ## Verificación y documentación
-Última entrega verificada: 273 comprobaciones locales, 66 de red, 103 WPF locales y 13 WPF conectadas en bases separadas. Windows 10, impresora y lector físicos siguen pendientes.
+Última entrega verificada: 273 comprobaciones locales, 73 de red, 106 WPF locales y 13 WPF conectadas en bases separadas. Windows 10, impresora y lector físicos siguen pendientes.
 
 - [Conectar varias computadoras](docs/RED.md)
 - [Plan](docs/PLAN.md)
