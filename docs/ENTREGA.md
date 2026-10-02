@@ -1,4 +1,4 @@
-# Entrega Monii 0.4 · categorías, captura y apariencia
+﻿# Entrega Monii 0.4 · categorías, captura y apariencia
 
 Fecha: 1 de octubre de 2026. Alcance solicitado implementado. Sin publicación/despliegue. Tickets y validación/distribución de Windows 10 siguen aplazados.
 
@@ -65,3 +65,20 @@ Operativo: Productos → Importar Excel / CSV, plantilla CSV, primera hoja visib
 ## Entrega 0.6.0 — detección
 239 comprobaciones de integración y 88 WPF. Manifest firmado vacío local, GitHub main configurado como origen, detección automática/manual y aviso de novedades. El endpoint actual retorna no publicado porque no se subieron archivos. No se descargan ni instalan actualizaciones, ni se generó paquete 0.6. Portable en artifacts/Monii-0.6.0-win-x64. Manual: docs/ACTUALIZACIONES.md.
 Ajuste final de interfaz: sin URL ni controles técnicos. Casilla al abrir con guardado automático, botón Buscar actualizaciones y botón Actualizar programa preparado pero deshabilitado mientras no haya instalación. Se quitaron las comprobaciones cada 6 horas.
+
+## Entrega 0.7 — servidor y cajas
+
+### Operativo y probado
+Modo local conservado y modo conectado con principal central; login, permisos de servidor, catálogo/categorías/importación, inventario, ventas, clientes, créditos/abonos, compras, devoluciones y anulaciones. Cajas identificadas por equipo con efectivo independiente o compartido. Estado de conexión, reconciliación accesible al cajero desde Inicio, backup descargado/restauración central validada y revocación de sesiones. Preferencias de negocio/monedas compartidas. Migración v4 a v5 con copia previa. Servicio y controles Windows preparados para instalación desde el portable.
+
+### Verificación
+Compilación .NET 10 sin errores ni advertencias; 239 comprobaciones locales, 51 de red mediante HTTPS real con varios clientes, 88 WPF locales y 13 WPF conectadas. Se probaron concurrencia de última unidad, pérdida de conexión antes y después de confirmar, reinicio con replay persistente, cierres por caja, cambio de modalidad, crédito/anulación/devolución, conversión COP con cambio posterior de tasa, importación y restauración. Los tests usan bases aisladas y no alteran los datos del negocio. Scripts de servicio y firewall con sintaxis validada. Portable WPF: las 88 comprobaciones también pasaron ejecutando Monii.exe sin SDK. Servidor portable: inicio HTTPS confirmado con base aislada.
+
+### Corregido durante la verificación
+Carga de certificado compatible con TLS Windows; distribución de las siete pestañas de configuración en una fila a 960 píxeles sin cortar esquinas; acceso a reconciliación para cajeros sin privilegios de configuración; separación de saldos por caja y bloqueo de peticiones anteriores a una restauración. Históricos de caja muestran su nombre.
+
+### Entrega y límites
+Portable: `artifacts/Monii-0.7.0-win-x64/Monii.exe`, incluyendo `server/runtime`, scripts de instalación/control y guía RED.md. No se instaló el servicio permanente ni se abrió el firewall; no se publicó una Release ni se desplegó. Servicio real bajo LocalService, reinicio Windows, LAN con dos equipos físicos y Windows 10 pendientes: esta sesión no tiene elevación Windows ni un segundo equipo disponible. El servidor probado se ejecutó como proceso de consola independiente de WPF. La demostración de ventas sigue marcada como demo; los flujos financieros de red prueban persistencia real.
+
+### Decisiones para revisar en el piloto
+Cajas independientes por defecto o caja compartida; IP reservada del principal; nombres de cajas y permisos de usuarios. Reintegros/anulaciones salen de la caja del operador, con validación de efectivo; deudas siguen en USD. Preferencias y apariencia compartidas entre equipos. Sin operación desconectada; respaldo remoto limitado a 100 MB. Guía y pasos completos en RED.md. BCV con tasa futura, tickets y distribución Windows 10 conservan su estado pendiente anterior.

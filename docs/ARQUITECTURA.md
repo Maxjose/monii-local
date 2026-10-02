@@ -1,4 +1,4 @@
-# Arquitectura de Monii 0.4
+﻿# Arquitectura de Monii 0.4
 
 ## Capas
 
@@ -58,3 +58,7 @@ ProductImport (Application) genera una vista previa tipada y aplica validaciones
 
 ## Detección 0.6
 UpdateChecker consulta solo metadatos HTTPS y valida UpdateCatalog RSA con clave pública incorporada; separa estado no publicado/error de estado verificado sin novedades. UI en segundo plano con cancelación, timer y consulta manual. No usa el instalador desde la interfaz actual. Catálogo sin Latest permite preparar el canal sin paquetes. Datos de negocio y versión SQL no cambian.
+
+## Extensión de red 0.7
+
+Véase [RED.md](RED.md) para el gateway, servicio HTTPS, identidad de caja, idempotencia transaccional, migración v5, reversión en la caja operadora y restauración central. Las deudas y descuentos siguen en USD; el servidor calcula costos, tasas y saldos. Cajas independientes predeterminadas; cambio de modalidad solo con todas las cajas cerradas.

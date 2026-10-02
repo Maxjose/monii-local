@@ -1,8 +1,9 @@
-# Monii 0.6 · gestión local de negocios
+﻿# Monii 0.7 · gestión de negocios local y en red
 
-Aplicación Windows en español desarrollada con C#, .NET 10, WPF y SQLite. Actualmente funciona con una computadora y usuarios locales. El modo de servidor con varias cajas es la siguiente fase; todavía no está implementado.
+Aplicación Windows en español desarrollada con C#, .NET 10, WPF y SQLite. Admite una computadora o un principal con varias cajas conectadas por HTTPS. El principal concentra los datos en un servicio Windows; las cajas independientes o compartidas se configuran desde el administrador. La instalación física del servicio y el piloto con dos equipos requieren validación en el negocio.
 
 ## Funciones operativas
+- Modo local y modo de red, autenticación central, cajas por equipo y protección contra operaciones duplicadas.
 - Catálogo y categorías: creación, edición, búsqueda, códigos, costos/precios USD y desactivación con historial.
 - Inventario, compras/proveedores, ventas, caja, clientes, créditos y abonos.
 - Anulaciones, devoluciones parciales de ventas, reportes y auditoría.
@@ -21,20 +22,20 @@ Desde la raíz:
     .\scripts\verify-ui.ps1
     .\scripts\build.ps1 -Publish
 
-La compilación portable se genera en artifacts/Monii-0.6.0-win-x64/Monii.exe. Conservar toda la carpeta. Incluye el runtime .NET; no está incluida en Git.
+La compilación portable se genera en artifacts/Monii-0.7.0-win-x64/Monii.exe. Conservar toda la carpeta. Incluye el runtime .NET; no está incluida en Git.
 En la primera apertura se crea el administrador con contraseña de al menos 12 caracteres; no hay credenciales predeterminadas.
 Para probar por separado:
     .\scripts\run.ps1 -DataDirectory 'D:\Ruta\PruebasMonii'
 
 ## Datos
-Base predeterminada: %LOCALAPPDATA%\Monii\monii.db. Esquema SQLite 4 con migraciones y copia previa al actualizar desde versiones anteriores.
+Base predeterminada: %LOCALAPPDATA%\Monii\monii.db. Esquema SQLite 5 con migraciones y copia previa al actualizar desde versiones anteriores.
 Las bases de datos, respaldos, binarios, archivos de prueba y herramientas locales se excluyen de Git.
 Desactivar productos o módulos conserva el historial. Caja abierta y deudas pendientes impiden desactivar funciones necesarias.
 Los datos locales no están cifrados: se requiere controlar el acceso al equipo y a sus respaldos.
 
 ## Monedas y tasas
 USD es la moneda base. Monedas y tasas se gestionan en Configuración. Las operaciones conservan sus conversiones históricas y solo ofrecen monedas activas.
-La consulta automática de tasas opera al abrir y cada 60 minutos cuando está habilitada; también hay consulta manual.
+La consulta automática de tasas opera al abrir y cada 60 minutos en modo local. En red la realiza el servicio cada 60 minutos cuando está habilitada; también hay consulta manual del administrador.
 Limitación detectada: si BCV publica una tasa con vigencia del día siguiente, se conserva la tasa previa y no se aplica la futura. La mejora de ese caso sigue pendiente.
 La tasa manual de bolívares no se sustituye por la consulta oficial.
 
@@ -46,8 +47,9 @@ La clave pública está incorporada en el código. La clave privada original per
 No se publica ninguna Release ni ZIP de actualización en esta etapa.
 
 ## Verificación y documentación
-Última entrega verificada: 239 comprobaciones de integración y 88 WPF en bases separadas. Windows 10, impresora y lector físicos siguen pendientes.
+Última entrega verificada: 239 comprobaciones locales, 51 de red, 88 WPF locales y 13 WPF conectadas en bases separadas. Windows 10, impresora y lector físicos siguen pendientes.
 
+- [Conectar varias computadoras](docs/RED.md)
 - [Plan](docs/PLAN.md)
 - [Arquitectura](docs/ARQUITECTURA.md)
 - [Informe de entrega](docs/ENTREGA.md)
@@ -56,7 +58,5 @@ No se publica ninguna Release ni ZIP de actualización en esta etapa.
 - [Actualizaciones](docs/ACTUALIZACIONES.md)
 - [Informe de pruebas](docs/PRUEBAS-2026-10-01.md)
 
-## Próxima fase acordada
-Mismo Monii en todos los equipos, con servicio de servidor en el equipo principal y clientes en la red local.
-Caja compartida o cajas independientes, configurable por el administrador; por defecto independientes. Cambiar de modalidad exige cerrar todas las cajas.
-Esta fase comienza después de versionar el estado actual.
+## Próximas verificaciones
+Validar instalación del servicio y reinicio Windows en el principal; después probar dos equipos físicos de la misma red. Seleccionar modalidad de caja e IP del principal durante el piloto. Tickets y distribución Windows 10 permanecen aplazados.

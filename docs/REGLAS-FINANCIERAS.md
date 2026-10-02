@@ -1,4 +1,4 @@
-# Supuestos operativos de Monii
+﻿# Supuestos operativos de Monii
 
 Estos supuestos son editables en la capa Application y requieren revisión del propietario antes de usar Monii como registro definitivo.
 
@@ -26,3 +26,6 @@ Orden de implementación y gates: inventario → ventas → caja → compras/pro
 - Actualización crea un respaldo completo antes de cerrar. La instalación de ejecutables no modifica la base; una migración posterior ocurre al iniciar la versión nueva. Volver a un esquema anterior exige restaurar la copia previa en carpeta independiente, no abrir una base nueva con binarios antiguos.
 
 Estas decisiones están aisladas en Application/Returns.cs y OperationsService.cs; conversión/configuración en BusinessService.cs. Cambiar moneda de deudas o regla de costos requiere migración explícita y nuevas pruebas, no editar snapshots históricos.
+## Extensión de red 0.7
+
+Véase [RED.md](RED.md) para el gateway, servicio HTTPS, identidad de caja, idempotencia transaccional, migración v5, reversión en la caja operadora y restauración central. Las deudas y descuentos siguen en USD; el servidor calcula costos, tasas y saldos. Cajas independientes predeterminadas; cambio de modalidad solo con todas las cajas cerradas.

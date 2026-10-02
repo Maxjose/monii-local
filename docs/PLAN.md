@@ -1,6 +1,6 @@
-# Plan completo de desarrollo de Monii
+﻿# Plan completo de desarrollo de Monii
 
-Actualizado: 1 de octubre de 2026 · entrega 0.4.
+Actualizado: 1 de octubre de 2026 · entrega 0.7.
 
 ## Requisitos y límites
 
@@ -14,7 +14,7 @@ No publicación ni despliegue. Usuario aplazó impresión de tickets y validaci�
 |---|---|---|
 | 1. Definición y diseño | Perfiles, flujos, reglas financieras y navegación | Documentado. Decisiones revisables en REGLAS-FINANCIERAS.md; revisión comercial/fiscal posterior |
 | 2. Base técnica | Capas, configuración, SQLite/migraciones, errores y operación local | Operativa. Migración 1/2→3 conserva datos, esquema futuro rechazado |
-| 3. Catálogo | Crear/editar/buscar, categorías/códigos, costos/precios, unidades, marcas/repuestos y desactivar con historial | Operativo. Categorías administrables, selector y captura por lector en 0.4. Importación masiva pendiente |
+| 3. Catálogo | Crear/editar/buscar, categorías/códigos, costos/precios, unidades, marcas/repuestos y desactivar con historial | Operativo. Categorías administrables, selector y captura por lector en 0.4. Importación CSV/.xlsx operativa desde 0.5 |
 | 4. Inventario | Movimientos, ajustes, stock mínimo, cantidades por unidad/peso, trazabilidad | Operativo. Stock negativo y fallos parciales rechazados. Lotes/vencimientos pendientes |
 | 5. Monedas | USD, dos referencias VES y COP; automática al abrir/periódica/manual, caché y snapshots | Operativa en 0.3. Ambas fuentes reales verificadas; sin red conserva tasa/fecha |
 | 6. Ventas | Carrito, códigos, descuentos, pagos combinados, crédito, historial/anulación y devoluciones parciales | Operativa en 0.3. Transacción stock/pago; centavos, saldos y devoluciones verificados |
@@ -24,7 +24,7 @@ No publicación ni despliegue. Usuario aplazó impresión de tickets y validaci�
 | 10. Respaldos/estabilidad | Manual/automático, retención/destino, restauración validada, rollback y pruebas completas | Operativa. 144 comprobaciones de integración y 43 WPF; pruebas de carga/energía pendientes |
 | 11. Versiones/actualizaciones | Paquetes firmados, versión/notas, HTTPS/local, respaldo/migraciones y recuperación | Cliente/generador operativos localmente. Hosting/feed comercial sin publicar; procedimiento documentado |
 | 12. Tickets/distribución | Impresión opcional 58/80 mm, instalador/firma, matriz Windows 10/11 y pilotos | Aplazados tickets y Windows 10. Instalador comercial/Authenticode y periféricos pendientes |
-| 13. Red | Servicio ASP.NET Core/base central, varias cajas, autenticación, migración, concurrencia y desconexión | Futura actualización. No compartir archivo SQLite por red |
+| 13. Red | Servicio ASP.NET Core/base central, varias cajas, autenticación, migración, concurrencia y desconexión | Implementada en 0.7: HTTPS, autenticación central, cajas independientes/compartida e idempotencia. Piloto físico y alta del servicio pendientes; véase RED.md |
 
 ## Entregas
 
@@ -52,3 +52,7 @@ Importación Excel/CSV de catálogo con plantilla CSV, vista previa, validación
 
 ## Monii 0.6 — detección de actualizaciones
 Completado: manifiesto firmado preparado para Maxjose/monii-local, consulta automática solo al abrir (opcional), consulta manual, versiones, notas y errores controlados. Descarga/instalación fuera del alcance actual. No hay archivos subidos ni Releases publicadas. Ver ACTUALIZACIONES.md.
+
+## Monii 0.7 — varias computadoras
+
+Implementados gateway local/remoto, servidor ASP.NET Core para servicio Windows, configuración de equipo, migración v5, cajas por terminal o compartida, permisos centrales, comprobantes persistentes de peticiones y reconciliación. Respaldos centrales con restauración exclusiva y revocación de sesiones. Verificaciones: 239 locales, 51 de red, 88 WPF locales y 13 WPF conectadas. Portable local preparado; instalación física del servicio, reinicio del equipo y LAN real pendientes por falta de elevación Windows y segundo equipo. No se desplegó ni se publicaron actualizaciones.
