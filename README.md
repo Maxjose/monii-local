@@ -3,6 +3,7 @@
 Aplicación Windows en español desarrollada con C#, .NET 10, WPF y SQLite. Admite una computadora o un principal con varias cajas conectadas por HTTPS. El principal concentra los datos en un servicio Windows; las cajas independientes o compartidas se configuran desde el administrador. La instalación física del servicio y el piloto con dos equipos requieren validación en el negocio.
 
 ## Funciones operativas
+- Perfil básico para productos, categorías y consulta de precios, con formulario reducido. Guía en docs/BASICO.md.
 - Modo local y modo de red, autenticación central, cajas por equipo y protección contra operaciones duplicadas.
 - Catálogo y categorías: creación, edición, búsqueda, códigos, costos/precios USD y desactivación con historial.
 - Inventario, compras/proveedores, ventas, caja, clientes, créditos y abonos.
@@ -48,7 +49,7 @@ La clave pública está incorporada en el código. La clave privada original per
 No se publica ninguna Release ni ZIP de actualización en esta etapa.
 
 ## Verificación y documentación
-Última entrega verificada: 239 comprobaciones locales, 51 de red, 88 WPF locales y 13 WPF conectadas en bases separadas. Windows 10, impresora y lector físicos siguen pendientes.
+Última entrega verificada: 273 comprobaciones locales, 66 de red, 103 WPF locales y 13 WPF conectadas en bases separadas. Windows 10, impresora y lector físicos siguen pendientes.
 
 - [Conectar varias computadoras](docs/RED.md)
 - [Plan](docs/PLAN.md)

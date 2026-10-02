@@ -1,6 +1,6 @@
-namespace Monii.Domain;
+﻿namespace Monii.Domain;
 
-public enum BusinessProfile { General, Groceries, Parts }
+public enum BusinessProfile { General, Groceries, Parts, Basic }
 public sealed record Category(Guid Id,string Name,bool Active=true);
 
 public sealed record Product
@@ -54,7 +54,7 @@ public sealed record BusinessSettings
     public bool DarkMode { get; init; }
     public string AccentColor { get; init; } = "#0F766E";
 
-    public BusinessSettings WithProfile(BusinessProfile profile) => this with
+    public BusinessSettings WithProfile(BusinessProfile profile) => profile==BusinessProfile.Basic ? this with { Profile=profile } : this with
     {
         Profile = profile,
         Lots = profile == BusinessProfile.Groceries,

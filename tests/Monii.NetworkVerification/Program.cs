@@ -159,6 +159,18 @@ static async Task Verify()
         var lotPurchase=oa.Buy(lotSupplier.Id,"Lote remoto",[(uiProduct.Id,2,1)],new(Currency.USD,PaymentMethod.Transferencia,2),[new("RED-COMPRA",DateOnly.FromDateTime(DateTime.Today.AddDays(10)))]);
         Check(a.ReadOperations().Purchases.Single(p=>p.Id==lotPurchase.Id).Lines.Single().LotCode=="RED-COMPRA","Compra remota conserva lote y vencimiento");
         oa.VoidPurchase(lotPurchase.Id,"Revertir lote remoto");oa.CloseCash(0,0,0);
+        var fullProfile=a.GetSettings();new BusinessService(a).SaveSettings(fullProfile.WithProfile(BusinessProfile.Basic));
+        using(var basicClient=new RemoteStore(config with { TerminalId=Guid.NewGuid(),TerminalName="Consulta básica" },Path.Combine(directory,"basic-client")))
+        {
+            basicClient.Authenticate("admin",pass);Check(basicClient.GetSettings().Profile==BusinessProfile.Basic,"Perfil básico se comparte entre equipos");
+            var basicOperations=new OperationsService(basicClient);Reject(()=>basicOperations.OpenCash(0,0,0),"Servidor bloquea apertura de caja en básico");Reject(()=>basicOperations.Sell([(uiProduct.Id,1)],0,[new(Currency.USD,PaymentMethod.Efectivo,4)]),"Servidor bloquea ventas incluso desde petición directa");
+            var simple=new Product { Name="Catálogo básico remoto",Code="BAS-RED",PriceUsd=3.50m };new BusinessService(basicClient).Save(simple);
+            basicClient.SaveCategory(new Category(Guid.NewGuid(),"Básico remoto"));
+            Check(a.GetProducts().Any(p=>p.Code=="BAS-RED"&&p.PriceUsd==3.50m)&&a.GetCategories().Any(c=>c.Name=="Básico remoto"),"Catálogo y categorías funcionan en perfil básico remoto");
+            Check(!basicClient.HasPending,"Operaciones prohibidas no dejan pendientes financieros");
+        }
+        new BusinessService(a).SaveSettings(fullProfile);
+        Check(a.ReadOperations().Sales.Any(s=>s.Id==lotSale.Id)&&OperationsService.Lots(a.ReadOperations(),uiProduct.Id).Any(l=>l.Code=="RED-FEFO"&&l.Quantity==2),"Volver a perfil completo conserva ventas y lotes centrales");
         var recoveryServer=Path.Combine(directory,"recovery-server");Directory.CreateDirectory(recoveryServer);
         a.Backup(Path.Combine(recoveryServer,"monii.db"));
         var recoveryLocal=Path.Combine(directory,"recovery-local");Directory.CreateDirectory(recoveryLocal);

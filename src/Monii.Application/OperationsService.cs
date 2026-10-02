@@ -12,6 +12,11 @@ public interface IOperationsStore
 
 public sealed partial class OperationsService(IOperationsStore store)
 {
+    private T Transact<T>(Func<OperationsState,IReadOnlyList<Product>,BusinessSettings,T> operation,string action,RemoteCommand command) => store.Transact((state,products,settings)=>
+    {
+        if(settings.Profile==BusinessProfile.Basic)throw new ArgumentException("El perfil básico solo permite productos, categorías y consulta de precios. Cambia de perfil para registrar operaciones.");
+        return operation(state,products,settings);
+    },action,command);
     public OperationsState State => store.ReadOperations();
     public static decimal Money(decimal value) => decimal.Round(value, 2, MidpointRounding.AwayFromZero);
     public static decimal Margin(Sale sale) => sale.Voided ? 0 : sale.Total - sale.Lines.Sum(l => Money(l.Quantity * l.Cost));
@@ -47,7 +52,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         else MoveExact(state,product,quantity,reason,doc,"",null);
     }
 
-    public void Adjust(Guid productId, decimal delta, string reason,string lotCode="",DateOnly? expiry=null) => store.Transact((state, products, settings) =>
+    public void Adjust(Guid productId, decimal delta, string reason,string lotCode="",DateOnly? expiry=null) => Transact((state, products, settings) =>
     {
         if (!settings.Inventory) throw new ArgumentException("Activa inventario para ajustar existencias.");
         Reason(reason); Quantity(Product(products, productId), Math.Abs(delta));
@@ -55,7 +60,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         else Move(state,productId,delta,reason.Trim(),null);return true;
     }, "Ajuste de inventario", NetworkJson.Command("Adjust",new { productId, delta, reason,lotCode,expiry }));
 
-    public Sale Sell(IReadOnlyList<(Guid ProductId, decimal Quantity)> items, decimal discount, IReadOnlyList<Payment> payments, Guid? customerId = null, DateOnly? due = null) => store.Transact((state, products, settings) =>
+    public Sale Sell(IReadOnlyList<(Guid ProductId, decimal Quantity)> items, decimal discount, IReadOnlyList<Payment> payments, Guid? customerId = null, DateOnly? due = null) => Transact((state, products, settings) =>
     {
         if (items.Count == 0) throw new ArgumentException("Agrega productos a la venta.");
         var lines = items.GroupBy(i => i.ProductId).Select(group =>
@@ -87,7 +92,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         state.Sales.Add(sale); return sale;
     }, "Venta registrada", NetworkJson.Command("Sell",new { items, discount, payments, customerId, due }));
 
-    public void VoidSale(Guid id, string reason) => store.Transact((state, _, settings) =>
+    public void VoidSale(Guid id, string reason) => Transact((state, _, settings) =>
     {
         Reason(reason); var sale = state.Sales.SingleOrDefault(s => s.Id == id) ?? throw new ArgumentException("Venta inexistente.");
         if (sale.Voided) throw new ArgumentException("La venta ya está anulada.");
@@ -121,25 +126,25 @@ public sealed partial class OperationsService(IOperationsStore store)
         // Return original change first, then refund payments; avoids an artificial transient shortage.
         foreach (var entry in entries.OrderBy(e => e.Payment.Amount)) Cash(state, entry.Payment with { Amount = -entry.Payment.Amount }, -entry.Usd, "Anulación: " + reason, doc);
     }
-    public void OpenCash(decimal usd, decimal ves, decimal cop) => store.Transact((state, _, settings) =>
+    public void OpenCash(decimal usd, decimal ves, decimal cop) => Transact((state, _, settings) =>
     {
         if (!settings.Cash) throw new ArgumentException("Activa caja.");
         Amount(usd, true); Amount(ves, true); Amount(cop, true);
         if (OpenSession(state,store.CashScope) is not null) throw new ArgumentException("Ya hay una caja abierta.");
         state.Sessions.Add(new() { Name=store.CashName, CashScope=store.CashScope, OpeningUsd = usd, OpeningVes = ves, OpeningCop = cop }); return true;
     }, "Caja abierta", NetworkJson.Command("OpenCash",new { usd, ves, cop }));
-    public void CloseCash(decimal usd, decimal ves, decimal cop) => store.Transact((state, _, _) =>
+    public void CloseCash(decimal usd, decimal ves, decimal cop) => Transact((state, _, _) =>
     {
         Amount(usd, true); Amount(ves, true); Amount(cop, true); var session = RequireCash(state);
         state.Sessions[state.Sessions.IndexOf(session)] = session with { ClosedAt = DateTimeOffset.UtcNow, CountedUsd = usd, CountedVes = ves, CountedCop = cop, ExpectedUsd = Expected(state, session, "USD"), ExpectedVes = Expected(state, session, "VES"), ExpectedCop = Expected(state, session, "COP") }; return true;
     }, "Caja cerrada", NetworkJson.Command("CloseCash",new { usd, ves, cop }));
-    public void CashMovement(Payment payment, bool expense, string reason) => store.Transact((state, _, settings) =>
+    public void CashMovement(Payment payment, bool expense, string reason) => Transact((state, _, settings) =>
     {
         if (!settings.Cash) throw new ArgumentException("Activa caja.");
         Reason(reason); var usd = Usd(payment, settings); Cash(state, expense ? payment with { Amount = -payment.Amount } : payment, expense ? -usd : usd, reason.Trim(), null); return true;
     }, "Movimiento de caja", NetworkJson.Command("CashMovement",new { payment, expense, reason }));
 
-    public void SaveContact(Contact contact, bool supplier) => store.Transact((state, _, settings) =>
+    public void SaveContact(Contact contact, bool supplier) => Transact((state, _, settings) =>
     {
         if (supplier ? !settings.Purchases : !settings.Customers) throw new ArgumentException("Activa el módulo correspondiente.");
         Reason(contact.Name); Amount(contact.CreditLimit, true); var list = supplier ? state.Suppliers : state.Customers;
@@ -149,7 +154,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         if (old is null) list.Add(contact with { Name = contact.Name.Trim() }); else list[list.IndexOf(old)] = contact with { Name = contact.Name.Trim() }; return true;
     }, supplier ? "Proveedor guardado" : "Cliente guardado", NetworkJson.Command("SaveContact",new { contact, supplier }));
 
-    public Purchase Buy(Guid supplierId, string reference, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Cost)> items, Payment payment,IReadOnlyList<LotReceipt>? lots=null) => store.Transact((state, products, settings) =>
+    public Purchase Buy(Guid supplierId, string reference, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Cost)> items, Payment payment,IReadOnlyList<LotReceipt>? lots=null) => Transact((state, products, settings) =>
     {
         if (!settings.Purchases || !settings.Inventory) throw new ArgumentException("Activa compras e inventario para recibir mercancía.");
         Reason(reference); if(items.Count==0)throw new ArgumentException("Agrega líneas a la compra.");
@@ -165,14 +170,14 @@ public sealed partial class OperationsService(IOperationsStore store)
         if (settings.Cash) { RequireCash(state); if (total > 0) Cash(state, payment with { Amount = -payment.Amount }, -total, "Compra", purchase.Id); }
         state.Purchases.Add(purchase); return purchase;
     }, "Compra registrada", NetworkJson.Command("Buy",new { supplierId, reference, items, payment,lots }));
-    public void VoidPurchase(Guid id, string reason) => store.Transact((state, _, settings) =>
+    public void VoidPurchase(Guid id, string reason) => Transact((state, _, settings) =>
     {
         Reason(reason); var purchase = state.Purchases.SingleOrDefault(p => p.Id == id) ?? throw new ArgumentException("Compra inexistente.");
         if (purchase.Voided) throw new ArgumentException("La compra ya está anulada.");
         foreach (var line in purchase.Lines) MoveExact(state,line.ProductId,-line.Quantity,"Anulación de compra: "+reason,id,line.LotCode,line.Expiry);
         ReverseCash(state, id, settings, reason); state.Purchases[state.Purchases.IndexOf(purchase)] = purchase with { Voided = true, VoidReason = reason.Trim() }; return true;
     }, "Compra anulada", NetworkJson.Command("VoidPurchase",new { id, reason }));
-    public CreditPayment PayDebt(Guid saleId, Payment payment) => store.Transact((state, _, settings) =>
+    public CreditPayment PayDebt(Guid saleId, Payment payment) => Transact((state, _, settings) =>
     {
         if (!settings.Credit || !settings.Customers) throw new ArgumentException("Activa clientes y créditos.");
         var sale = state.Sales.SingleOrDefault(s => s.Id == saleId) ?? throw new ArgumentException("Venta inexistente.");
@@ -182,7 +187,7 @@ public sealed partial class OperationsService(IOperationsStore store)
         if (settings.Cash) Cash(state, payment, usd, "Abono de crédito", abono.Id);
         state.Abonos.Add(abono); return abono;
     }, "Abono registrado", NetworkJson.Command("PayDebt",new { saleId, payment }));
-    public void VoidDebtPayment(Guid id, string reason) => store.Transact((state, _, settings) =>
+    public void VoidDebtPayment(Guid id, string reason) => Transact((state, _, settings) =>
     {
         Reason(reason); var abono = state.Abonos.SingleOrDefault(a => a.Id == id) ?? throw new ArgumentException("Abono inexistente.");
         if (abono.Voided) throw new ArgumentException("El abono ya está anulado.");

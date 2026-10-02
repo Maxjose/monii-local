@@ -33,7 +33,7 @@ public sealed partial class OperationsService
         var document=new SaleReturn { SaleId=saleId,Reason=reason.Trim(),Lines=lines,Total=total,CostReduction=costReduction,DebtReduction=reduction,RefundUsd=refund,RefundMethod=refundMethod };
         return document;
     }
-    public SaleReturn ReturnSale(Guid saleId,IReadOnlyList<(Guid ProductId,decimal Quantity)> items,string reason,PaymentMethod refundMethod=PaymentMethod.Efectivo) => store.Transact((state,products,settings)=>
+    public SaleReturn ReturnSale(Guid saleId,IReadOnlyList<(Guid ProductId,decimal Quantity)> items,string reason,PaymentMethod refundMethod=PaymentMethod.Efectivo) => Transact((state,products,settings)=>
     {
         var document=CalculateReturn(state,saleId,items,reason,refundMethod);
         var sale=state.Sales.Single(s=>s.Id==saleId); var lines=document.Lines; var refund=document.RefundUsd;

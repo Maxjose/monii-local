@@ -42,7 +42,7 @@ public partial class MainWindow : Window
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.F2) { Navigate("Productos"); e.Handled = true; }
-            if (e.Key == Key.F4) { Navigate("Ventas"); e.Handled = true; }
+            if (e.Key == Key.F4) { Navigate(service.Settings.Profile==BusinessProfile.Basic?"Listado de precios":"Ventas"); e.Handled = true; }
         };
     }
 
@@ -51,15 +51,17 @@ public partial class MainWindow : Window
         Theme.Apply(service.Settings);
         BusinessName.Text = service.Settings.Name + (storage.CurrentUser is { } user ? $" · {user.Name} ({user.Role})" : "");
         Navigation.Children.Clear();
-        AddNav("Inicio"); AddNav("Productos"); AddNav("Ventas");
+        AddNav("Inicio"); AddNav("Productos");
+        var basic=service.Settings.Profile==BusinessProfile.Basic;
+        if(basic)AddNav("Listado de precios");else AddNav("Ventas");
         if(storage.Can(Permission.Products)) AddNav("Categorías");
         var settings = service.Settings;
-        if (settings.Inventory&&storage.Can(Permission.Inventory)) AddNav("Inventario");
-        if (settings.Purchases&&storage.Can(Permission.Purchases)) AddNav("Compras");
-        if (settings.Customers&&storage.Can(Permission.Customers)) AddNav("Clientes");
-        if (settings.Credit&&storage.Can(Permission.Credit)) AddNav("Créditos");
-        if (settings.Cash&&storage.Can(Permission.Cash)) AddNav("Caja");
-        if (settings.Reports&&storage.Can(Permission.Reports)) AddNav("Reportes");
+        if (!basic&&settings.Inventory&&storage.Can(Permission.Inventory)) AddNav("Inventario");
+        if (!basic&&settings.Purchases&&storage.Can(Permission.Purchases)) AddNav("Compras");
+        if (!basic&&settings.Customers&&storage.Can(Permission.Customers)) AddNav("Clientes");
+        if (!basic&&settings.Credit&&storage.Can(Permission.Credit)) AddNav("Créditos");
+        if (!basic&&settings.Cash&&storage.Can(Permission.Cash)) AddNav("Caja");
+        if (!basic&&settings.Reports&&storage.Can(Permission.Reports)) AddNav("Reportes");
         if(storage.Can(Permission.Settings)) AddNav("Configuración");
         AddNav("Cerrar sesión");
     }
@@ -69,7 +71,7 @@ public partial class MainWindow : Window
         var button = Button(label, () => Navigate(label));
         button.HorizontalContentAlignment = HorizontalAlignment.Left;
         button.Style=(Style)FindResource("NavigationButton");
-        button.Tag=label switch { "Inicio"=>"\uE80F","Productos"=>"\uE719","Categorías"=>"\uE8EC","Ventas"=>"\uE7BF","Inventario"=>"\uE7B8","Compras"=>"\uE8CC","Clientes"=>"\uE77B","Créditos"=>"\uE8C7","Caja"=>"\uE8D4","Reportes"=>"\uE9D9","Configuración"=>"\uE713",_=>"\uE8D7" };
+        button.Tag=label switch { "Inicio"=>"\uE80F","Productos"=>"\uE719","Listado de precios"=>"\uE8D4","Categorías"=>"\uE8EC","Ventas"=>"\uE7BF","Inventario"=>"\uE7B8","Compras"=>"\uE8CC","Clientes"=>"\uE77B","Créditos"=>"\uE8C7","Caja"=>"\uE8D4","Reportes"=>"\uE9D9","Configuración"=>"\uE713",_=>"\uE8D7" };
         button.SetResourceReference(Control.BackgroundProperty,label==currentPage?"Accent":"ThemeSidebar");
         button.Foreground=label==currentPage?Theme.Resource("AccentText"):Brushes.White;
         button.Margin = new Thickness(0, 2, 0, 2);
@@ -108,6 +110,7 @@ public partial class MainWindow : Window
                 Show();if(resumeExchange)exchangeTimer.Start();
                 page="Inicio";
             }
+            if(service.Settings.Profile==BusinessProfile.Basic&&(page is "Ventas" or "Venta demo" or "Inventario" or "Compras" or "Clientes" or "Créditos" or "Caja" or "Reportes"))page="Listado de precios";
             var permission=page switch { "Configuración" or "Apariencia"=>Permission.Settings,"Categorías"=>Permission.Products,"Inventario"=>Permission.Inventory,"Compras"=>Permission.Purchases,"Clientes"=>Permission.Customers,"Créditos"=>Permission.Credit,"Caja"=>Permission.Cash,"Reportes"=>Permission.Reports,"Respaldos"=>Permission.Backup,"Usuarios"=>Permission.Users,"Actualizaciones"=>Permission.Updates,_=>(Permission?)null };
             if(permission is { } needed) storage.Require(needed);
             var section=page is "Respaldos" or "Usuarios" or "Actualizaciones" or "Apariencia"?page:"";
@@ -116,10 +119,10 @@ public partial class MainWindow : Window
             BuildNavigation();
             PageTitle.Text = page;
             PageHeader.Margin=new Thickness(0,0,0,page=="Inicio"?8:24);
-            Status.Text = "F2: productos · F4: ventas · USD es la moneda base";
+            Status.Text = service.Settings.Profile==BusinessProfile.Basic?"F2: productos · F4: listado de precios":"F2: productos · F4: ventas · USD es la moneda base";
             PageContent.Content = page switch
             {
-                "Inicio" => Home(), "Productos" => Products(), "Categorías"=>CategoriesPage(),"Configuración" => Settings(section), "Ventas" => Sales(),
+                "Inicio" => Home(), "Listado de precios"=>PriceList(),"Productos" => Products(), "Categorías"=>CategoriesPage(),"Configuración" => Settings(section), "Ventas" => Sales(),
                 "Venta demo" => DemoSales(), "Inventario" => Inventory(), "Caja" => CashPage(), "Compras" => Purchases(),
                 "Clientes" => Contacts(false), "Créditos" => Credits(), "Reportes" => Reports(), "Respaldos" => Backups(),
                 "Usuarios"=>UsersPage(), "Actualizaciones"=>UpdatesPage(),
@@ -131,6 +134,7 @@ public partial class MainWindow : Window
 
     private UIElement Home()
     {
+        if(service.Settings.Profile==BusinessProfile.Basic)return BasicHome();
         var panel = new StackPanel();
         if (storage.BackupWarning is { } warning) panel.Children.Add(Text(warning, 15, "#B91C1C"));
         if(storage is RemoteStore pending && pending.HasPending)
@@ -176,7 +180,7 @@ public partial class MainWindow : Window
         grid.Columns.Add(Column("Producto", "Name", 2));
         grid.Columns.Add(Column("Código", "Code"));
         grid.Columns.Add(Column("Categoría", "Category"));
-        if(storage.Can(Permission.Products)) grid.Columns.Add(Column("Costo USD", "CostUsd", 1, "{0:N2}"));
+        if(service.Settings.Profile!=BusinessProfile.Basic&&storage.Can(Permission.Products)) grid.Columns.Add(Column("Costo USD", "CostUsd", 1, "{0:N2}"));
         grid.Columns.Add(Column("Precio USD", "PriceUsd", 1, "{0:N2}"));
         var currencies = service.Settings;
         if (currencies.ShowBcv) grid.Columns.Add(ConvertedColumn("Bs BCV", currencies.BcvRate));
@@ -191,7 +195,7 @@ public partial class MainWindow : Window
             count.Text = $"{rows.Count} productos · Doble clic para editar · Precios en USD";
         }
         controls.Children.Add(Button("+ Nuevo producto", () => EditProduct(null, Reload)));
-        controls.Children.Add(Button("Importar Excel / CSV",()=>StartProductImport()));
+        if(service.Settings.Profile!=BusinessProfile.Basic)controls.Children.Add(Button("Importar Excel / CSV",()=>StartProductImport()));
         controls.Children.Add(Button("Editar", () =>
         {
             if (grid.SelectedItem is Product product) EditProduct(product, Reload);
@@ -215,6 +219,7 @@ public partial class MainWindow : Window
     private void EditProduct(Product? existing, Action saved)
     {
         if(!storage.Can(Permission.Products)) { Status.Text="Tu usuario solo puede consultar el catálogo."; return; }
+        if(service.Settings.Profile==BusinessProfile.Basic) { EditBasicProduct(existing,saved);return; }
         var product = existing ?? new Product();
         var panel = new StackPanel { Margin = new Thickness(24) };
         panel.Children.Add(Text(existing is null ? "Nuevo producto" : "Editar producto", 24));
@@ -264,26 +269,33 @@ public partial class MainWindow : Window
         panel.Children.Add(Text("Datos del negocio", 20));
         var name = Field(panel, "Nombre del negocio *", settings.Name);
         var taxId = Field(panel, "Identificación fiscal", settings.TaxId);
-        var profile = Choice(panel, "Perfil", new[] { "Negocio general", "Víveres", "Repuestos" }, ProfileLabel(settings.Profile));
-        panel.Children.Add(Text("Módulos opcionales", 20));
-        panel.Children.Add(Text("Oculta las funciones que no utilices. Sus datos se conservarán.", 13, "#64748B"));
-        var inventory = Check(panel, "Inventario", settings.Inventory);
-        var purchases = Check(panel, "Compras", settings.Purchases);
-        var customers = Check(panel, "Clientes", settings.Customers);
-        var credit = Check(panel, "Créditos (requiere clientes)", settings.Credit);
-        var cash = Check(panel, "Caja", settings.Cash);
-        var reports = Check(panel, "Reportes", settings.Reports);
-        var lots = Check(panel, "Lotes y vencimientos", settings.Lots);
-        var compatibility = Check(panel, "Campos de compatibilidad con vehículos", settings.VehicleCompatibility);
-        var tickets = Check(panel, "Impresión de tickets — preferencia para futura fase", settings.Tickets);
+        var profile = Choice(panel, "Perfil", new[] { "Negocio general", "Víveres", "Repuestos", "Básico" }, ProfileLabel(settings.Profile));
+        var basicDescription=Text("Perfil básico: registra productos, organiza categorías y consulta precios. Las funciones de ventas, caja e inventario quedan ocultas. Puedes volver a otro perfil conservando tus datos.",14,"#64748B");panel.Children.Add(basicDescription);
+        var modules=new StackPanel();panel.Children.Add(modules);
+        modules.Children.Add(Text("Módulos opcionales", 20));
+        modules.Children.Add(Text("Oculta las funciones que no utilices. Sus datos se conservarán.", 13, "#64748B"));
+        var inventory = Check(modules, "Inventario", settings.Inventory);
+        var purchases = Check(modules, "Compras", settings.Purchases);
+        var customers = Check(modules, "Clientes", settings.Customers);
+        var credit = Check(modules, "Créditos (requiere clientes)", settings.Credit);
+        var cash = Check(modules, "Caja", settings.Cash);
+        var reports = Check(modules, "Reportes", settings.Reports);
+        var lots = Check(modules, "Lotes y vencimientos", settings.Lots);
+        var compatibility = Check(modules, "Campos de compatibilidad con vehículos", settings.VehicleCompatibility);
+        var tickets = Check(modules, "Impresión de tickets — preferencia para futura fase", settings.Tickets);
         customers.Unchecked += (_, _) => credit.IsChecked = false;
         credit.Checked += (_, _) => customers.IsChecked = true;
-        profile.SelectionChanged += (_, _) =>
+        void ProfileChanged()
         {
+            modules.Visibility=profile.SelectedIndex==3?Visibility.Collapsed:Visibility.Visible;
+            basicDescription.Visibility=profile.SelectedIndex==3?Visibility.Visible:Visibility.Collapsed;
+            if(profile.SelectedIndex==3)return;
             lots.IsChecked = profile.SelectedIndex == 1;
             compatibility.IsChecked = profile.SelectedIndex == 2;
-        };
-        panel.Children.Add(Text("La impresión de tickets se implementará en una entrega posterior.", 13, "#92400E"));
+        }
+        profile.SelectionChanged+=(_,_)=>ProfileChanged();
+        modules.Children.Add(Text("La impresión de tickets se implementará en una entrega posterior.", 13, "#92400E"));
+        modules.Visibility=profile.SelectedIndex==3?Visibility.Collapsed:Visibility.Visible;basicDescription.Visibility=profile.SelectedIndex==3?Visibility.Visible:Visibility.Collapsed;
         var error = Text("", 13, "#B91C1C"); panel.Children.Add(error);
         panel.Children.Add(Button("Guardar configuración", () =>
         {
@@ -377,7 +389,7 @@ public partial class MainWindow : Window
     private void ShowError(Exception error) => MessageBox.Show(FriendlyError(error), "Monii", MessageBoxButton.OK, MessageBoxImage.Warning);
     private static string FriendlyError(Exception error) => error is ArgumentException ? error.Message : "No se pudo completar la operación. Revisa el acceso a los datos.\n" + error.Message;
     private static Brush Brush(string color) => Theme.Resolve(color);
-    private static string ProfileLabel(BusinessProfile profile) => profile switch { BusinessProfile.Groceries => "Víveres", BusinessProfile.Parts => "Repuestos", _ => "Negocio general" };
+    private static string ProfileLabel(BusinessProfile profile) => profile switch { BusinessProfile.Groceries => "Víveres", BusinessProfile.Parts => "Repuestos",BusinessProfile.Basic=>"Básico", _ => "Negocio general" };
     private static TextBlock Text(string value, double size = 14, string color = "#172B3A") => new() { Text = value, FontSize = size, Foreground = Brush(color), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) };
     private static Button Button(string label, Action action) { var button = new Button { Content = label }; button.Click += (_, _) => action(); return button; }
     private static TextBox Field(Panel panel, string label, string value) { panel.Children.Add(Text(label)); var field = new TextBox { Text = value }; panel.Children.Add(field); return field; }

@@ -35,7 +35,7 @@ public sealed partial class OperationsService
         }
         throw new ArgumentException("No se pudo reconstruir el lote original de la venta.");
     }
-    public void ClassifyLot(Guid productId,decimal quantity,string code,DateOnly? expiry,string reason) => store.Transact((state,products,settings)=>
+    public void ClassifyLot(Guid productId,decimal quantity,string code,DateOnly? expiry,string reason) => Transact((state,products,settings)=>
     {
         if(!settings.Inventory||!settings.Lots)throw new ArgumentException("Activa inventario y lotes.");
         Reason(reason);Quantity(Product(products,productId),quantity);var lot=ValidateLot(state,productId,code,expiry);

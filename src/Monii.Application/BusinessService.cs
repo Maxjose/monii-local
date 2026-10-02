@@ -49,6 +49,11 @@ public sealed class BusinessService(IStore store)
         if (store is IOperationsStore operations)
         {
             var state = operations.ReadOperations();
+            if(settings.Profile==BusinessProfile.Basic&&Settings.Profile!=BusinessProfile.Basic)
+            {
+                if(state.Sessions.Any(s=>s.ClosedAt is null))throw new ArgumentException("Cierra todas las cajas antes de usar el perfil básico.");
+                if(state.Sales.Any(s=>OperationsService.Debt(state,s)>0))throw new ArgumentException("Liquida los créditos pendientes antes de usar el perfil básico.");
+            }
             if(settings.IndependentCash!=Settings.IndependentCash && state.Sessions.Any(s=>s.ClosedAt is null)) throw new ArgumentException("Cierra todas las cajas antes de cambiar la modalidad.");
             if(!settings.Inventory&&state.Stock.Where(m=>m.LotCode.Length>0).GroupBy(m=>(m.ProductId,m.LotCode)).Any(g=>g.Sum(m=>m.Quantity)>0))throw new ArgumentException("Conserva inventario activo mientras haya existencias en lotes.");
             if (!settings.Cash && OperationsService.OpenSession(state) is not null) throw new ArgumentException("Cierra caja antes de desactivar el módulo.");

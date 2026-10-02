@@ -152,6 +152,28 @@ public partial class MainWindow
         };
         logoutTimer.Start();Navigate("Cerrar sesión");if(logoutFailure is not null)throw logoutFailure;
         Assert(IsVisible&&storage.CurrentUser?.Username=="logout-ui","Nuevo inicio de sesión recupera ventana principal");
+        var completeSettings=service.Settings;
+        Navigate("Configuración");UpdateLayout();Descendants(PageContent).OfType<ComboBox>().Single().SelectedIndex=3;Click(PageContent,"Guardar configuración");
+        Navigate("Inicio");UpdateLayout();
+        Assert(service.Settings.Profile==BusinessProfile.Basic&&Descendants(Navigation).OfType<Button>().Select(b=>b.Content?.ToString()).OrderBy(s=>s).SequenceEqual(new[]{"Inicio","Productos","Categorías","Listado de precios","Configuración","Cerrar sesión"}.OrderBy(s=>s)),"Básico muestra solo catálogo, categorías, precios y administración");
+        Assert(!Descendants(PageContent).OfType<TextBlock>().Any(t=>t.Text.Contains("Caja")||t.Text.Contains("Créditos"))&&!Descendants(PageContent).OfType<Button>().Any(b=>b.Content?.ToString()=="Registrar venta"),"Inicio básico no muestra datos ni acciones financieras");Capture((FrameworkElement)Content,"inicio-basico.png");
+        Navigate("Productos");UpdateLayout();
+        Modal(()=>Click(PageContent,"+ Nuevo producto"),"Guardar producto",window=> {
+            var fields=Descendants(window).OfType<TextBox>().ToList();Assert(fields.Count==3,"Formulario básico solo pide nombre, código y precio");fields[0].Text="Producto básico UI";fields[1].Text="BAS-UI";fields[2].Text="9,95";
+            var selector=Descendants(window).OfType<ComboBox>().Single();selector.SelectedItem=selector.Items.Cast<Category>().Single(c=>c.Name=="Filtros");Capture(window,"producto-basico.png");
+        });
+        Assert(service.Products().Single(p=>p.Code=="BAS-UI").PriceUsd==9.95m,"Producto básico creado y persistido desde WPF");
+        var preserved=service.Products().Single(p=>p.Code=="7891234567890");
+        Descendants(PageContent).OfType<DataGrid>().Single().SelectedItem=Descendants(PageContent).OfType<DataGrid>().Single().Items.Cast<Product>().Single(p=>p.Id==preserved.Id);
+        Modal(()=>Click(PageContent,"Editar"),"Guardar producto",window=>Descendants(window).OfType<TextBox>().Last().Text="6");
+        Assert(service.Products().Single(p=>p.Id==preserved.Id).CostUsd==preserved.CostUsd&&service.Products().Single(p=>p.Id==preserved.Id).Unit==preserved.Unit,"Editar precio básico conserva costo y unidad anteriores");
+        service.SaveSettings(service.Settings with { ShowBcv=false,ShowManualVes=false,ShowCop=true,CopRate=4200 });Navigate("Listado de precios");UpdateLayout();
+        Descendants(PageContent).OfType<TextBox>().Single().Text="BAS-UI";
+        var priceGrid=Descendants(PageContent).OfType<DataGrid>().Single();
+        Assert(priceGrid.IsReadOnly&&priceGrid.Items.Count==1&&priceGrid.Columns.Any(c=>c.Header?.ToString()=="COP")&&!priceGrid.Columns.Any(c=>c.Header?.ToString() is "Bs BCV" or "Costo USD"),"Listado básico busca y muestra solo precios y monedas activas");Capture((FrameworkElement)Content,"precios-basicos.png");
+        Navigate("Ventas");Assert(PageTitle.Text=="Listado de precios","Acceso directo a ventas redirige al listado básico");
+        service.SaveSettings(completeSettings);Navigate("Inicio");
+        Assert(Descendants(Navigation).OfType<Button>().Any(b=>b.Content?.ToString()=="Ventas"),"Volver a perfil completo recupera navegación anterior");
         Navigate("Inicio"); UpdateLayout(); Capture((FrameworkElement)Content,"inicio-04.png");
     }
 }

@@ -15,7 +15,7 @@ No publicación ni despliegue. Usuario aplazó impresión de tickets y validaci�
 | 1. Definición y diseño | Perfiles, flujos, reglas financieras y navegación | Documentado. Decisiones revisables en REGLAS-FINANCIERAS.md; revisión comercial/fiscal posterior |
 | 2. Base técnica | Capas, configuración, SQLite/migraciones, errores y operación local | Operativa. Migración 1/2→3 conserva datos, esquema futuro rechazado |
 | 3. Catálogo | Crear/editar/buscar, categorías/códigos, costos/precios, unidades, marcas/repuestos y desactivar con historial | Operativo. Categorías administrables, selector y captura por lector en 0.4. Importación CSV/.xlsx operativa desde 0.5 |
-| 4. Inventario | Movimientos, ajustes, stock mínimo, cantidades por unidad/peso, trazabilidad | Operativo. Stock negativo y fallos parciales rechazados. Lotes/vencimientos pendientes |
+| 4. Inventario | Movimientos, ajustes, stock mínimo, cantidades por unidad/peso, trazabilidad | Operativo. Stock negativo y fallos parciales rechazados. Lotes/vencimientos operativos con FEFO y preservación de reintegros |
 | 5. Monedas | USD, dos referencias VES y COP; automática al abrir/periódica/manual, caché y snapshots | Operativa en 0.3. Ambas fuentes reales verificadas; sin red conserva tasa/fecha |
 | 6. Ventas | Carrito, códigos, descuentos, pagos combinados, crédito, historial/anulación y devoluciones parciales | Operativa en 0.3. Transacción stock/pago; centavos, saldos y devoluciones verificados |
 | 7. Compras | Proveedores, recepción, costos, pagos, historial y anulaciones | Operativa con pago completo. Cuentas por pagar y devolución parcial de compras pendientes |
@@ -62,3 +62,6 @@ Completados: desinstalación protegida con recuperación a modo local, preservac
 
 ### Lotes y vencimientos
 Completados recepción, clasificación, ajustes, alertas, listado, asignación FEFO, bloqueo de vencidos y reintegros originales; migración v6, respaldos y pruebas de interfaz/local/red. Reglas y decisiones documentadas en LOTES.md y REGLAS-FINANCIERAS.md. Inicio compacto y mínimo de contraseña de 8 caracteres completados.
+
+### Perfil básico
+Completados perfil Básico, navegación reducida, inicio sencillo, formulario de producto sin campos avanzados y listado de precios con búsqueda/categoría/monedas activas. Configuración, respaldo y acceso conservados. Operaciones financieras bloqueadas en aplicación/servidor; histórico y preferencias preservados al cambiar perfil. Guía: BASICO.md.
