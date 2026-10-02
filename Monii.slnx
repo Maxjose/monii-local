@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Monii.Domain/Monii.Domain.csproj" />
+    <Project Path="src/Monii.Application/Monii.Application.csproj" />
+    <Project Path="src/Monii.Infrastructure/Monii.Infrastructure.csproj" />
+    <Project Path="src/Monii.Desktop/Monii.Desktop.csproj" />
+    <Project Path="src/Monii.UpdateTool/Monii.UpdateTool.csproj" />
+  </Folder>
+  <Folder Name="/tests/"><Project Path="tests/Monii.Verification/Monii.Verification.csproj" /></Folder>
+</Solution>

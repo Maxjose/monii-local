@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Monii</AssemblyName>
+    <Version>0.6.0</Version>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Monii.Infrastructure/Monii.Infrastructure.csproj" /></ItemGroup>
+</Project>

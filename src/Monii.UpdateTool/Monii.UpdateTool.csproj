@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Monii.UpdateTool</AssemblyName></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Monii.Infrastructure/Monii.Infrastructure.csproj" /></ItemGroup>
+</Project>

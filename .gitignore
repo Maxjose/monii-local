@@ -1,0 +1,17 @@
+.tools/
+**/bin/
+**/obj/
+artifacts/
+*.db
+*.db-shm
+*.db-wal
+.vs/
+search-results.json
+*.user
+*.suo
+*.pfx
+*.p12
+*private*.pem
+.env
+.env.*
+!.env.example
